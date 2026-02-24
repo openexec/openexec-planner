@@ -32,6 +32,14 @@ dev = [
     "mypy>=1.0",
     "ruff>=0.1",
 ]
+llm = [
+    "anthropic>=0.40",
+    "openai>=1.50",
+    "google-generativeai>=0.8",
+]
+all = [
+    "openexec-orchestration[dev,llm]",
+]
 
 [project.scripts]
 openexec-orchestration = "openexec_orchestration.__main__:main"

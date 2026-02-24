@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .parser import IntentParser
 from .generator import StoryGenerator
+from .llm_generator import LLMStoryGenerator
 from .goal_tree import GoalTreeBuilder
 from .scheduler import Scheduler
 
@@ -38,6 +39,17 @@ def main() -> int:
         "-o",
         type=Path,
         help="Output file (default: stdout)",
+    )
+    gen_parser.add_argument(
+        "--model",
+        "-m",
+        default="sonnet",
+        help="Model to use for generation (opus, sonnet, haiku, gpt-5, gemini-3.1-pro-preview)",
+    )
+    gen_parser.add_argument(
+        "--reviewer",
+        "-r",
+        help="Model to use for reviewing generated stories (enables review step)",
     )
 
     # build-tree command
@@ -126,11 +138,35 @@ def cmd_generate(args: argparse.Namespace) -> int:
         print(f"Error: File not found: {args.file}", file=sys.stderr)
         return 1
 
-    parser = IntentParser()
-    intent = parser.parse(args.file)
+    model = getattr(args, "model", "sonnet")
+    reviewer = getattr(args, "reviewer", None)
 
-    generator = StoryGenerator()
-    stories = generator.generate(intent)
+    print(f"Executor model: {model}")
+    if reviewer:
+        print(f"Reviewer model: {reviewer}")
+
+    # Read raw intent content
+    intent_content = args.file.read_text()
+
+    # Use LLM-based generator for better quality stories
+    try:
+        generator = LLMStoryGenerator(model=model)
+        print("Generating stories...")
+        stories = generator.generate(intent_content)
+        print(f"Generated {len(stories)} stories")
+
+        # Review step if reviewer is specified
+        if reviewer:
+            print("Reviewing stories...")
+            stories = generator.review(stories, intent_content, reviewer_model=reviewer)
+            print("Review complete")
+
+    except Exception as e:
+        print(f"Warning: LLM generation failed ({e}), falling back to rule-based", file=sys.stderr)
+        parser = IntentParser()
+        intent = parser.parse(args.file)
+        fallback_generator = StoryGenerator()
+        stories = fallback_generator.generate(intent)
 
     output = json.dumps(stories, indent=2)
     if args.output:

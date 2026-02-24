@@ -1,11 +1,33 @@
-"""LLM-based story generation from intent documents."""
+"""LLM-based story generation from intent documents.
+
+Supports both API-based and CLI-based generation:
+- CLI mode (default): Uses claude/codex/gemini CLI commands
+- API mode: Uses Anthropic/OpenAI/Google APIs (requires API keys)
+"""
 
 import json
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 from typing import Any
 
-# Model mapping
+# Model to CLI command mapping
+CLI_COMMANDS = {
+    # Claude Code CLI
+    "opus": "claude",
+    "sonnet": "claude",
+    "haiku": "claude",
+    # Codex CLI
+    "gpt-5": "codex",
+    "gpt-5-codex": "codex",
+    # Gemini CLI
+    "gemini-3.1-pro-preview": "gemini",
+    "gemini-3.1-flash-preview": "gemini",
+}
+
+# Model mapping for API mode
 CLAUDE_MODELS = {
     "opus": "claude-opus-4-20250514",
     "sonnet": "claude-sonnet-4-20250514",
@@ -168,14 +190,17 @@ Generate the JSON array of stories. Output ONLY valid JSON, no markdown or expla
 class LLMStoryGenerator:
     """Generates high-quality user stories using LLM."""
 
-    def __init__(self, model: str = "sonnet"):
+    def __init__(self, model: str = "sonnet", use_api: bool = False):
         """Initialize generator with model.
 
         Args:
             model: Model identifier (opus, sonnet, haiku, gpt-5, gemini-3.1-pro-preview, etc.)
+            use_api: If True, use API calls. If False (default), use CLI commands.
         """
         self.model = model
+        self.use_api = use_api
         self.provider = self._detect_provider(model)
+        self.cli_command = CLI_COMMANDS.get(model, "claude")
 
     def _detect_provider(self, model: str) -> str:
         """Detect provider from model name."""
@@ -200,6 +225,16 @@ class LLMStoryGenerator:
         """
         prompt = STORY_GENERATION_PROMPT.format(intent=intent_content)
 
+        # Try CLI first (default), fall back to API if CLI not available
+        if not self.use_api:
+            cli_path = shutil.which(self.cli_command)
+            if cli_path:
+                response = self._call_cli(prompt)
+                return self._parse_response(response)
+            else:
+                print(f"CLI '{self.cli_command}' not found, trying API...")
+
+        # API mode
         if self.provider == "anthropic":
             response = self._call_anthropic(prompt)
         elif self.provider == "openai":
@@ -209,8 +244,57 @@ class LLMStoryGenerator:
         else:
             raise ValueError(f"Unknown provider: {self.provider}")
 
-        # Parse JSON response
         return self._parse_response(response)
+
+    def _call_cli(self, prompt: str) -> str:
+        """Call LLM via CLI command (claude, codex, or gemini)."""
+        # Write prompt to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write(prompt)
+            prompt_file = f.name
+
+        try:
+            # Build command based on CLI type
+            if self.cli_command == "claude":
+                # Claude Code CLI
+                cmd = [
+                    "claude",
+                    "-p", prompt,
+                    "--output-format", "text",
+                    "--max-turns", "1",
+                ]
+            elif self.cli_command == "codex":
+                # Codex CLI
+                cmd = [
+                    "codex",
+                    "-p", prompt,
+                    "--output-format", "text",
+                ]
+            elif self.cli_command == "gemini":
+                # Gemini CLI
+                cmd = [
+                    "gemini",
+                    "-p", prompt,
+                ]
+            else:
+                raise ValueError(f"Unknown CLI command: {self.cli_command}")
+
+            # Run the command
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute timeout
+            )
+
+            if result.returncode != 0:
+                raise RuntimeError(f"CLI command failed: {result.stderr}")
+
+            return result.stdout
+
+        finally:
+            # Clean up temp file
+            os.unlink(prompt_file)
 
     def _call_anthropic(self, prompt: str) -> str:
         """Call Anthropic API."""
@@ -347,6 +431,39 @@ class LLMStoryGenerator:
         print(f"  ! Max iterations reached, returning best effort")
         return current_stories
 
+    def _call_llm(self, prompt: str, model: str | None = None) -> str:
+        """Call LLM using CLI or API based on configuration.
+
+        Args:
+            prompt: The prompt to send
+            model: Optional model override (uses self.model if not specified)
+        """
+        target_model = model or self.model
+        cli_cmd = CLI_COMMANDS.get(target_model, "claude")
+
+        # Try CLI first if not forcing API
+        if not self.use_api:
+            cli_path = shutil.which(cli_cmd)
+            if cli_path:
+                # Temporarily update cli_command for the call
+                original_cli = self.cli_command
+                self.cli_command = cli_cmd
+                try:
+                    return self._call_cli(prompt)
+                finally:
+                    self.cli_command = original_cli
+
+        # Fall back to API
+        provider = self._detect_provider(target_model)
+        if provider == "anthropic":
+            return self._call_anthropic(prompt)
+        elif provider == "openai":
+            return self._call_openai(prompt)
+        elif provider == "google":
+            return self._call_google(prompt)
+        else:
+            raise ValueError(f"Unknown provider: {provider}")
+
     def _get_review(
         self, stories: list[dict[str, Any]], intent_content: str, reviewer_model: str
     ) -> dict[str, Any]:
@@ -355,26 +472,8 @@ class LLMStoryGenerator:
             intent=intent_content, stories=json.dumps(stories, indent=2)
         )
 
-        # Use reviewer model
-        original_model = self.model
-        original_provider = self.provider
-        self.model = reviewer_model
-        self.provider = self._detect_provider(reviewer_model)
-
-        try:
-            if self.provider == "anthropic":
-                response = self._call_anthropic(prompt)
-            elif self.provider == "openai":
-                response = self._call_openai(prompt)
-            elif self.provider == "google":
-                response = self._call_google(prompt)
-            else:
-                raise ValueError(f"Unknown provider: {self.provider}")
-
-            return self._parse_review_response(response)
-        finally:
-            self.model = original_model
-            self.provider = original_provider
+        response = self._call_llm(prompt, model=reviewer_model)
+        return self._parse_review_response(response)
 
     def _fix_stories(
         self,
@@ -390,16 +489,7 @@ class LLMStoryGenerator:
             feedback=feedback,
         )
 
-        # Use executor model (self.model is already set to executor)
-        if self.provider == "anthropic":
-            response = self._call_anthropic(prompt)
-        elif self.provider == "openai":
-            response = self._call_openai(prompt)
-        elif self.provider == "google":
-            response = self._call_google(prompt)
-        else:
-            raise ValueError(f"Unknown provider: {self.provider}")
-
+        response = self._call_llm(prompt)
         return self._parse_response(response)
 
     def _parse_review_response(self, response: str) -> dict[str, Any]:

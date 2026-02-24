@@ -141,9 +141,28 @@ def cmd_generate(args: argparse.Namespace) -> int:
     model = getattr(args, "model", "sonnet")
     reviewer = getattr(args, "reviewer", None)
 
-    print(f"Executor model: {model}")
+    # Detect CLI availability
+    import shutil
+    cli_commands = {"opus": "claude", "sonnet": "claude", "haiku": "claude",
+                    "gpt-5": "codex", "gpt-5-codex": "codex",
+                    "gemini-3.1-pro-preview": "gemini", "gemini-3.1-flash-preview": "gemini"}
+    executor_cli = cli_commands.get(model, "claude")
+    executor_cli_available = shutil.which(executor_cli) is not None
+
+    print(f"Executor model: {model} (CLI: {executor_cli})")
+    if executor_cli_available:
+        print(f"  Using CLI mode: {executor_cli}")
+    else:
+        print(f"  CLI '{executor_cli}' not found, will try API")
+
     if reviewer:
-        print(f"Reviewer model: {reviewer}")
+        reviewer_cli = cli_commands.get(reviewer, "claude")
+        reviewer_cli_available = shutil.which(reviewer_cli) is not None
+        print(f"Reviewer model: {reviewer} (CLI: {reviewer_cli})")
+        if reviewer_cli_available:
+            print(f"  Using CLI mode: {reviewer_cli}")
+        else:
+            print(f"  CLI '{reviewer_cli}' not found, will try API")
 
     # Read raw intent content
     intent_content = args.file.read_text()

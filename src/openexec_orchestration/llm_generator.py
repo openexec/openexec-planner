@@ -24,7 +24,7 @@ GEMINI_MODELS = {
 
 STORY_REVIEW_PROMPT = """You are a senior software architect reviewing generated user stories.
 
-Analyze the stories against the original intent document and improve them.
+Analyze the stories against the original intent document. Return a JSON object with your review decision.
 
 REVIEW CRITERIA:
 1. Each requirement (REQ-XXX) should have exactly ONE story
@@ -34,20 +34,50 @@ REVIEW CRITERIA:
 5. Task IDs must follow format: T-US-XXX-YYY
 6. Stories should cover ALL requirements in the intent
 
-FIXES TO MAKE:
-- Merge duplicate stories into one
-- Remove stories that don't map to a requirement
-- Add missing stories for uncovered requirements
-- Replace generic tasks with specific technical tasks
-- Extract proper acceptance criteria from intent
-
 ORIGINAL INTENT:
 {intent}
 
 GENERATED STORIES:
 {stories}
 
-Return the IMPROVED stories as a JSON array. Output ONLY valid JSON, no markdown or explanations."""
+Return a JSON object with this structure:
+{{
+  "approved": true/false,
+  "issues": [
+    {{
+      "story_id": "US-001",
+      "issue": "Description of the problem",
+      "fix": "How to fix it"
+    }}
+  ],
+  "summary": "Brief overall assessment"
+}}
+
+If approved=true, issues should be empty or minor suggestions.
+If approved=false, issues must list all problems that need fixing.
+
+Output ONLY valid JSON, no markdown or explanations."""
+
+STORY_FIX_PROMPT = """You are a software architect fixing user stories based on reviewer feedback.
+
+ORIGINAL INTENT:
+{intent}
+
+CURRENT STORIES:
+{stories}
+
+REVIEWER FEEDBACK:
+{feedback}
+
+Fix ALL the issues identified by the reviewer. Return the corrected stories as a JSON array.
+
+RULES:
+1. Address every issue in the feedback
+2. Keep the same JSON structure for stories
+3. Task IDs should follow format: T-US-XXX-YYY
+4. Be specific and actionable in task descriptions
+
+Output ONLY valid JSON array of stories, no markdown or explanations."""
 
 STORY_GENERATION_PROMPT = """You are a software architect generating user stories from an intent document.
 
@@ -204,18 +234,58 @@ class LLMStoryGenerator:
         return response.text
 
     def review(
-        self, stories: list[dict[str, Any]], intent_content: str, reviewer_model: str
+        self,
+        stories: list[dict[str, Any]],
+        intent_content: str,
+        reviewer_model: str,
+        max_iterations: int = 3,
     ) -> list[dict[str, Any]]:
-        """Review and improve generated stories.
+        """Review and fix stories in a loop until approved.
 
         Args:
             stories: Generated stories to review
             intent_content: Original intent document
             reviewer_model: Model to use for review
+            max_iterations: Maximum review-fix cycles
 
         Returns:
-            Improved stories
+            Approved stories
         """
+        current_stories = stories
+
+        for iteration in range(max_iterations):
+            print(f"  Review iteration {iteration + 1}/{max_iterations}")
+
+            # Get review from reviewer model
+            review_result = self._get_review(
+                current_stories, intent_content, reviewer_model
+            )
+
+            if review_result.get("approved", False):
+                print(f"  ✓ Stories approved: {review_result.get('summary', 'OK')}")
+                return current_stories
+
+            # Stories rejected - show issues and fix
+            issues = review_result.get("issues", [])
+            print(f"  ✗ Rejected with {len(issues)} issue(s):")
+            for issue in issues[:3]:  # Show first 3 issues
+                print(f"    - {issue.get('story_id', '?')}: {issue.get('issue', 'Unknown issue')}")
+            if len(issues) > 3:
+                print(f"    ... and {len(issues) - 3} more")
+
+            # Fix stories using executor model
+            print("  Fixing stories...")
+            current_stories = self._fix_stories(
+                current_stories, intent_content, review_result
+            )
+
+        print(f"  ! Max iterations reached, returning best effort")
+        return current_stories
+
+    def _get_review(
+        self, stories: list[dict[str, Any]], intent_content: str, reviewer_model: str
+    ) -> dict[str, Any]:
+        """Get review decision from reviewer model."""
         prompt = STORY_REVIEW_PROMPT.format(
             intent=intent_content, stories=json.dumps(stories, indent=2)
         )
@@ -236,11 +306,63 @@ class LLMStoryGenerator:
             else:
                 raise ValueError(f"Unknown provider: {self.provider}")
 
-            return self._parse_response(response)
+            return self._parse_review_response(response)
         finally:
-            # Restore original model
             self.model = original_model
             self.provider = original_provider
+
+    def _fix_stories(
+        self,
+        stories: list[dict[str, Any]],
+        intent_content: str,
+        review_result: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Fix stories based on reviewer feedback using executor model."""
+        feedback = json.dumps(review_result, indent=2)
+        prompt = STORY_FIX_PROMPT.format(
+            intent=intent_content,
+            stories=json.dumps(stories, indent=2),
+            feedback=feedback,
+        )
+
+        # Use executor model (self.model is already set to executor)
+        if self.provider == "anthropic":
+            response = self._call_anthropic(prompt)
+        elif self.provider == "openai":
+            response = self._call_openai(prompt)
+        elif self.provider == "google":
+            response = self._call_google(prompt)
+        else:
+            raise ValueError(f"Unknown provider: {self.provider}")
+
+        return self._parse_response(response)
+
+    def _parse_review_response(self, response: str) -> dict[str, Any]:
+        """Parse review JSON response."""
+        response = response.strip()
+        if response.startswith("```json"):
+            response = response[7:]
+        elif response.startswith("```"):
+            response = response[3:]
+        if response.endswith("```"):
+            response = response[:-3]
+        response = response.strip()
+
+        # Find JSON object
+        start = response.find("{")
+        end = response.rfind("}") + 1
+        if start != -1 and end > start:
+            response = response[start:end]
+
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            # If parsing fails, assume rejection
+            return {
+                "approved": False,
+                "issues": [{"issue": "Failed to parse review response"}],
+                "summary": "Review parsing error",
+            }
 
     def _parse_response(self, response: str) -> list[dict[str, Any]]:
         """Parse JSON response from LLM."""

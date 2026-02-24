@@ -161,8 +161,30 @@ def cmd_generate(args: argparse.Namespace) -> int:
             stories = generator.review(stories, intent_content, reviewer_model=reviewer)
             print("Review complete")
 
+    except ImportError as e:
+        print(f"Warning: LLM packages not installed ({e})", file=sys.stderr)
+        print("Install with: pip install anthropic openai google-generativeai", file=sys.stderr)
+        print("Falling back to rule-based generation...", file=sys.stderr)
+        parser = IntentParser()
+        intent = parser.parse(args.file)
+        fallback_generator = StoryGenerator()
+        stories = fallback_generator.generate(intent)
+    except ValueError as e:
+        # JSON parsing errors
+        error_msg = str(e)
+        if "ANTHROPIC_API_KEY" in error_msg or "OPENAI_API_KEY" in error_msg or "GOOGLE_API_KEY" in error_msg:
+            print(f"Warning: API key not set - {error_msg}", file=sys.stderr)
+        else:
+            print(f"Warning: LLM response parsing failed", file=sys.stderr)
+            print(f"Error: {error_msg[:200]}", file=sys.stderr)
+        print("Falling back to rule-based generation...", file=sys.stderr)
+        parser = IntentParser()
+        intent = parser.parse(args.file)
+        fallback_generator = StoryGenerator()
+        stories = fallback_generator.generate(intent)
     except Exception as e:
-        print(f"Warning: LLM generation failed ({e}), falling back to rule-based", file=sys.stderr)
+        print(f"Warning: LLM generation failed ({type(e).__name__}: {e})", file=sys.stderr)
+        print("Falling back to rule-based generation...", file=sys.stderr)
         parser = IntentParser()
         intent = parser.parse(args.file)
         fallback_generator = StoryGenerator()

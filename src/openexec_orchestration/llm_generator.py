@@ -447,10 +447,23 @@ class LLMStoryGenerator:
         if start != -1 and end > start:
             response = response[start:end]
 
+        # Try to fix common JSON issues
+        # Sometimes LLM outputs [ "key": instead of [ {"key":
+        if re.search(r'\[\s*"[^"]+"\s*:', response):
+            # Wrap in objects - find each "key": pattern after [ or ,
+            response = re.sub(r'(\[|,)\s*("[^"]+")\s*:', r'\1 {\2:', response)
+            # Close any unclosed objects before ] or ,
+            response = re.sub(r'([^}])\s*(,\s*\{|\])', r'\1}\2', response)
+
         try:
             stories = json.loads(response)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Failed to parse LLM response as JSON: {e}\nResponse: {response[:500]}")
+            # Try a more aggressive fix - maybe the LLM returned a single object
+            try:
+                single = json.loads("{" + response.strip("[]{}").strip() + "}")
+                stories = [single]
+            except json.JSONDecodeError:
+                raise ValueError(f"Failed to parse LLM response as JSON: {e}\nResponse: {response[:500]}")
 
         # Validate structure
         if not isinstance(stories, list):

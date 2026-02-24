@@ -22,17 +22,25 @@ GEMINI_MODELS = {
     "gemini-3.1-flash-preview": "gemini-3.1-flash-preview",
 }
 
-STORY_REVIEW_PROMPT = """You are a senior software architect reviewing generated user stories.
+STORY_REVIEW_PROMPT = """You are a senior software architect reviewing generated user stories for implementation readiness.
 
-Analyze the stories against the original intent document. Return a JSON object with your review decision.
+Your goal is to ensure the stories are SUFFICIENT FOR IMPLEMENTATION - a developer should be able to pick up any task and know exactly what to build.
 
-REVIEW CRITERIA:
-1. Each requirement (REQ-XXX) should have exactly ONE story
-2. No redundant or overlapping stories
-3. Tasks must be specific and actionable (not generic "Design/Implement/Test")
-4. Acceptance criteria must be extracted from the intent document
-5. Task IDs must follow format: T-US-XXX-YYY
-6. Stories should cover ALL requirements in the intent
+REVIEW THE STORIES AGAINST THESE CRITERIA:
+
+1. **Requirement Coverage**: Each REQ-XXX in the intent must map to exactly ONE story. No requirements should be missing or buried.
+
+2. **No Redundancy**: Stories should not overlap. If US-001, US-005, and US-010 all cover "basic setup", they must be merged into one.
+
+3. **Quality & Correctness**: No parsing errors, hallucinations, or corrupted titles (e.g., a story titled "**Acceptance Criteria:**" is invalid).
+
+4. **Acceptance Criteria**: Must be extracted from the intent document, not null or generic. These define "done".
+
+5. **Specific Tasks**: Tasks must be technical and actionable:
+   - BAD: "Design: Plan implementation", "Implement: Build feature", "Test: Verify"
+   - GOOD: "Create Dockerfile with multi-stage build", "Configure docker-compose volumes", "Add health check endpoint"
+
+6. **Technical Completeness**: All technical requirements from the intent must appear as specific tasks.
 
 ORIGINAL INTENT:
 {intent}
@@ -40,44 +48,77 @@ ORIGINAL INTENT:
 GENERATED STORIES:
 {stories}
 
-Return a JSON object with this structure:
+Return a JSON object:
 {{
-  "approved": true/false,
-  "issues": [
+  "approved": false,
+  "assessment": "The stories are not sufficient for implementation because...",
+  "key_issues": [
     {{
-      "story_id": "US-001",
-      "issue": "Description of the problem",
-      "fix": "How to fix it"
+      "category": "Redundancy & Fragmentation",
+      "description": "There are 12 stories for 4 requirements. US-001, US-005, US-010 all cover the same goal.",
+      "examples": ["US-001 and US-010 both cover 'basic setup'"]
+    }},
+    {{
+      "category": "Generic Tasks",
+      "description": "All tasks follow 'Design/Implement/Test' template without specifics.",
+      "examples": ["US-002 Task 1: 'Implement: Build feature' - what feature? what files?"]
     }}
   ],
-  "summary": "Brief overall assessment"
+  "refactoring_plan": {{
+    "goal": "Refactor to align with the N requirements in INTENT.md",
+    "proposed_stories": [
+      {{
+        "story": "Docker Development Environment",
+        "maps_to": "REQ-001",
+        "tasks": ["Create Dockerfile (dev target)", "Create docker-compose.yml", "Configure hot-reload volumes"]
+      }}
+    ]
+  }}
 }}
 
-If approved=true, issues should be empty or minor suggestions.
-If approved=false, issues must list all problems that need fixing.
+If stories are good, set approved=true and provide brief positive assessment.
 
 Output ONLY valid JSON, no markdown or explanations."""
 
-STORY_FIX_PROMPT = """You are a software architect fixing user stories based on reviewer feedback.
+STORY_FIX_PROMPT = """You are a software architect fixing user stories based on detailed reviewer feedback.
+
+The reviewer has analyzed the stories and provided a refactoring plan. You MUST follow it.
 
 ORIGINAL INTENT:
 {intent}
 
-CURRENT STORIES:
+CURRENT STORIES (problematic):
 {stories}
 
-REVIEWER FEEDBACK:
+REVIEWER ANALYSIS AND REFACTORING PLAN:
 {feedback}
 
-Fix ALL the issues identified by the reviewer. Return the corrected stories as a JSON array.
+YOUR TASK:
+Follow the reviewer's refactoring_plan exactly. Generate the proposed stories with:
+1. One story per requirement as specified
+2. Specific, technical tasks as listed in the plan
+3. Acceptance criteria extracted from the intent document
+4. Proper IDs: US-001, US-002, etc. and T-US-001-001, T-US-001-002, etc.
 
-RULES:
-1. Address every issue in the feedback
-2. Keep the same JSON structure for stories
-3. Task IDs should follow format: T-US-XXX-YYY
-4. Be specific and actionable in task descriptions
+OUTPUT FORMAT - JSON array:
+[
+  {{
+    "id": "US-001",
+    "title": "Story title from refactoring plan",
+    "description": "As a developer, I want...",
+    "requirement_id": "REQ-001",
+    "acceptance_criteria": ["Specific criteria from intent"],
+    "tasks": [
+      {{
+        "id": "T-US-001-001",
+        "title": "Specific task from plan",
+        "description": "Technical details for implementation"
+      }}
+    ]
+  }}
+]
 
-Output ONLY valid JSON array of stories, no markdown or explanations."""
+Output ONLY valid JSON array, no markdown or explanations."""
 
 STORY_GENERATION_PROMPT = """You are a software architect generating user stories from an intent document.
 
@@ -262,16 +303,40 @@ class LLMStoryGenerator:
             )
 
             if review_result.get("approved", False):
-                print(f"  ✓ Stories approved: {review_result.get('summary', 'OK')}")
+                assessment = review_result.get("assessment", "Stories are implementation-ready")
+                print(f"  ✓ Approved: {assessment}")
                 return current_stories
 
-            # Stories rejected - show issues and fix
-            issues = review_result.get("issues", [])
-            print(f"  ✗ Rejected with {len(issues)} issue(s):")
-            for issue in issues[:3]:  # Show first 3 issues
-                print(f"    - {issue.get('story_id', '?')}: {issue.get('issue', 'Unknown issue')}")
-            if len(issues) > 3:
-                print(f"    ... and {len(issues) - 3} more")
+            # Stories rejected - show detailed feedback
+            print()
+            print(f"  ✗ {review_result.get('assessment', 'Stories need improvement')}")
+            print()
+
+            # Show key issues
+            key_issues = review_result.get("key_issues", [])
+            if key_issues:
+                print("  Key Issues Found:")
+                for i, issue in enumerate(key_issues, 1):
+                    category = issue.get("category", "Issue")
+                    desc = issue.get("description", "")
+                    print(f"    {i}. {category}: {desc}")
+                    for example in issue.get("examples", [])[:2]:
+                        print(f"       - {example}")
+                print()
+
+            # Show refactoring plan
+            plan = review_result.get("refactoring_plan", {})
+            if plan:
+                print(f"  Proposed Refactoring Plan:")
+                print(f"    Goal: {plan.get('goal', 'Align with requirements')}")
+                print()
+                for proposed in plan.get("proposed_stories", []):
+                    story = proposed.get("story", "?")
+                    maps_to = proposed.get("maps_to", "?")
+                    print(f"    * {story} ({maps_to})")
+                    for task in proposed.get("tasks", [])[:3]:
+                        print(f"        - {task}")
+                print()
 
             # Fix stories using executor model
             print("  Fixing stories...")

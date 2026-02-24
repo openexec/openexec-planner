@@ -34,7 +34,7 @@ dev = [
 ]
 
 [project.scripts]
-openexec-orchestration = "openexec_orchestration.cli:main"
+openexec-orchestration = "openexec_orchestration.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

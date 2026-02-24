@@ -1,0 +1,27 @@
+project:
+  name: uaos-orchestration
+  description: Management Plane - Intent parsing, Planning, Quality Gates
+execution:
+  auto_fix: true
+  fix_strategy: by_file
+  max_fix_iterations: 2
+quality:
+  gates:
+    - py_lint
+    - py_typecheck
+    - py_test
+    - py_security
+
+  custom:
+    - name: py_lint
+      command: "ruff check ."
+      mode: blocking
+    - name: py_typecheck
+      command: "mypy ."
+      mode: blocking
+    - name: py_test
+      command: "pytest"
+      mode: blocking
+    - name: py_security
+      command: "bandit -r src/ -c .bandit"
+      mode: blocking

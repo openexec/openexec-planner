@@ -189,20 +189,33 @@ def cmd_generate(args: argparse.Namespace) -> int:
         fallback_generator = StoryGenerator()
         stories = fallback_generator.generate(intent)
     except ValueError as e:
-        # JSON parsing errors
+        # JSON parsing errors or API key errors
         error_msg = str(e)
-        if "ANTHROPIC_API_KEY" in error_msg or "OPENAI_API_KEY" in error_msg or "GOOGLE_API_KEY" in error_msg:
+        if "API_KEY" in error_msg.upper():
             print(f"Warning: API key not set - {error_msg}", file=sys.stderr)
         else:
             print(f"Warning: LLM response parsing failed", file=sys.stderr)
-            print(f"Error: {error_msg[:200]}", file=sys.stderr)
+            print(f"Error: {error_msg[:500]}", file=sys.stderr)
+        print("Falling back to rule-based generation...", file=sys.stderr)
+        parser = IntentParser()
+        intent = parser.parse(args.file)
+        fallback_generator = StoryGenerator()
+        stories = fallback_generator.generate(intent)
+    except KeyError as e:
+        # This shouldn't happen - indicates a bug in response handling
+        import traceback
+        print(f"Warning: Unexpected KeyError in LLM generation: {e}", file=sys.stderr)
+        print("This may indicate the CLI returned unexpected output format.", file=sys.stderr)
+        print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
         print("Falling back to rule-based generation...", file=sys.stderr)
         parser = IntentParser()
         intent = parser.parse(args.file)
         fallback_generator = StoryGenerator()
         stories = fallback_generator.generate(intent)
     except Exception as e:
+        import traceback
         print(f"Warning: LLM generation failed ({type(e).__name__}: {e})", file=sys.stderr)
+        print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
         print("Falling back to rule-based generation...", file=sys.stderr)
         parser = IntentParser()
         intent = parser.parse(args.file)

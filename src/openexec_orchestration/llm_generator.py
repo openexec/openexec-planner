@@ -10,7 +10,6 @@ import os
 import re
 import shutil
 import subprocess
-import tempfile
 from typing import Any
 
 # Model to CLI command mapping
@@ -156,7 +155,7 @@ RULES:
 
 OUTPUT FORMAT (JSON array):
 [
-  {
+  {{
     "id": "US-001",
     "title": "Docker Development Environment",
     "description": "As a developer, I want a Docker-based development environment so that I can develop locally with hot-reload",
@@ -167,18 +166,18 @@ OUTPUT FORMAT (JSON array):
       "Node modules are persisted in named volume"
     ],
     "tasks": [
-      {
+      {{
         "id": "T-US-001-001",
         "title": "Create development Dockerfile",
         "description": "Create Dockerfile with development target stage, Node.js base image, and hot-reload support"
-      },
-      {
+      }},
+      {{
         "id": "T-US-001-002",
         "title": "Create docker-compose.yml",
         "description": "Configure docker-compose with volume mounts, port mapping, and environment variables"
-      }
+      }}
     ]
-  }
+  }}
 ]
 
 INTENT DOCUMENT:
@@ -247,54 +246,115 @@ class LLMStoryGenerator:
         return self._parse_response(response)
 
     def _call_cli(self, prompt: str) -> str:
-        """Call LLM via CLI command (claude, codex, or gemini)."""
-        # Write prompt to temp file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-            f.write(prompt)
-            prompt_file = f.name
+        """Call LLM via CLI command (claude, codex, or gemini).
+
+        Uses stdin to send prompt - this is the proven pattern from the initial
+        project that works reliably with all CLI tools.
+        """
+        # Build command based on CLI type
+        if self.cli_command == "claude":
+            # Claude Code CLI: claude --print
+            # Sends prompt via stdin, outputs to stdout
+            cmd = ["claude", "--print"]
+        elif self.cli_command == "codex":
+            # Codex CLI: codex exec --json --full-auto -
+            # --json for machine-readable output, --full-auto for non-interactive
+            cmd = ["codex", "exec", "--json", "--full-auto", "-"]
+        elif self.cli_command == "gemini":
+            # Gemini CLI: gemini --prompt - --yolo
+            # --prompt - reads from stdin, --yolo for non-interactive mode
+            cmd = ["gemini", "--prompt", "-", "--yolo"]
+        else:
+            raise ValueError(f"Unknown CLI command: {self.cli_command}")
 
         try:
-            # Build command based on CLI type
-            if self.cli_command == "claude":
-                # Claude Code CLI
-                cmd = [
-                    "claude",
-                    "-p", prompt,
-                    "--output-format", "text",
-                    "--max-turns", "1",
-                ]
-            elif self.cli_command == "codex":
-                # Codex CLI
-                cmd = [
-                    "codex",
-                    "-p", prompt,
-                    "--output-format", "text",
-                ]
-            elif self.cli_command == "gemini":
-                # Gemini CLI
-                cmd = [
-                    "gemini",
-                    "-p", prompt,
-                ]
-            else:
-                raise ValueError(f"Unknown CLI command: {self.cli_command}")
-
-            # Run the command
-            result = subprocess.run(
+            # Run the command with prompt via stdin
+            process = subprocess.Popen(
                 cmd,
-                capture_output=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True,
-                timeout=300,  # 5 minute timeout
             )
 
-            if result.returncode != 0:
-                raise RuntimeError(f"CLI command failed: {result.stderr}")
+            # Send prompt to stdin and close
+            stdout, _ = process.communicate(input=prompt, timeout=300)
 
-            return result.stdout
+            if process.returncode != 0:
+                raise RuntimeError(f"CLI command failed (exit {process.returncode}): {stdout[:500]}")
 
-        finally:
-            # Clean up temp file
-            os.unlink(prompt_file)
+            # For codex --json, we need to extract the agent_message text from JSONL events
+            if self.cli_command == "codex":
+                agent_text = []
+                for line in stdout.splitlines():
+                    if not line.strip():
+                        continue
+                    try:
+                        event = json.loads(line)
+                        if event.get("type") == "item.completed":
+                            item = event.get("item", {})
+                            if item.get("type") == "agent_message":
+                                agent_text.append(item.get("text", ""))
+                    except json.JSONDecodeError:
+                        continue
+                
+                # Use the last agent message found
+                if agent_text:
+                    return self._clean_output(agent_text[-1])
+                else:
+                    # Fallback to raw output if no events found
+                    return self._clean_output(stdout)
+
+            return self._clean_output(stdout)
+
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+            raise RuntimeError("CLI command timed out after 300 seconds")
+
+    def _clean_output(self, output: str) -> str:
+        """Strip diagnostic messages and tool-call echoes from CLI output.
+
+        This prevents diagnostic lines and tool calls from ending up in 
+        the final response, which improves JSON parsing.
+        """
+        lines = output.split("\n")
+        clean_lines = []
+        skip_patterns = [
+            "YOLO mode is enabled",
+            "Loaded cached credentials",
+            "Hook registry initialized",
+            "Loading extension:",
+            "I will ",
+            "Calling tool:",
+            "Tool call approved",
+            "thinking",
+            "tokens used",
+            "session id:",
+            "reasoning effort:",
+            "reasoning summaries:",
+            "--------",
+        ]
+
+        found_content_start = False
+        for line in lines:
+            stripped = line.strip()
+
+            # Skip diagnostic lines
+            if any(pattern in stripped for pattern in skip_patterns):
+                continue
+
+            # Skip tool execution logs like [Tool] write_file
+            if stripped.startswith("[") and "]" in stripped and any(x in stripped for x in ["Tool", "workdir", "sandbox"]):
+                continue
+
+            if not found_content_start and not stripped:
+                continue
+
+            found_content_start = True
+            clean_lines.append(line)
+
+        return "\n".join(clean_lines).strip()
 
     def _call_anthropic(self, prompt: str) -> str:
         """Call Anthropic API."""
@@ -492,78 +552,101 @@ class LLMStoryGenerator:
         response = self._call_llm(prompt)
         return self._parse_response(response)
 
-    def _parse_review_response(self, response: str) -> dict[str, Any]:
-        """Parse review JSON response."""
-        response = response.strip()
-        if response.startswith("```json"):
-            response = response[7:]
-        elif response.startswith("```"):
-            response = response[3:]
-        if response.endswith("```"):
-            response = response[:-3]
-        response = response.strip()
+    def _extract_json_from_response(self, response: str, expect_array: bool = False) -> Any:
+        """Extract JSON data from agent response.
 
-        # Find JSON object
-        start = response.find("{")
-        end = response.rfind("}") + 1
-        if start != -1 and end > start:
-            response = response[start:end]
+        Handles potential markdown code blocks and extracts JSON.
+        This is the proven pattern from the initial project.
+
+        Args:
+            response: The raw agent response text.
+            expect_array: If True, look for array first, then object.
+
+        Returns:
+            Parsed JSON data.
+
+        Raises:
+            ValueError: If response cannot be parsed as valid JSON.
+        """
+        # Try to find JSON in markdown code blocks first
+        json_block_pattern = r"```(?:json)?\s*\n?([\s\S]*?)\n?```"
+        matches = re.findall(json_block_pattern, response)
+
+        json_text = response
+        if matches:
+            # Use the first JSON block found
+            json_text = matches[0]
+        else:
+            # Try to extract JSON object or array directly
+            json_object_pattern = r"\{[\s\S]*\}"
+            json_array_pattern = r"\[[\s\S]*\]"
+
+            obj_match = re.search(json_object_pattern, response)
+            arr_match = re.search(json_array_pattern, response)
+
+            # Prioritize based on expect_array parameter
+            if expect_array:
+                # Look for array first
+                if arr_match:
+                    json_text = arr_match.group(0)
+                elif obj_match:
+                    json_text = obj_match.group(0)
+            else:
+                # Look for object first
+                if obj_match and arr_match:
+                    if obj_match.start() < arr_match.start():
+                        json_text = obj_match.group(0)
+                    else:
+                        json_text = arr_match.group(0)
+                elif obj_match:
+                    json_text = obj_match.group(0)
+                elif arr_match:
+                    json_text = arr_match.group(0)
 
         try:
-            return json.loads(response)
-        except json.JSONDecodeError:
+            return json.loads(json_text.strip())
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse JSON from response: {e}\nText: {json_text[:300]}") from e
+
+    def _parse_review_response(self, response: str) -> dict[str, Any]:
+        """Parse review JSON response."""
+        try:
+            result = self._extract_json_from_response(response, expect_array=False)
+            if isinstance(result, dict):
+                return result
+            # If we got an array, it's probably wrong - assume rejection
+            return {
+                "approved": False,
+                "assessment": "Unexpected review response format (got array instead of object)",
+            }
+        except ValueError:
             # If parsing fails, assume rejection
             return {
                 "approved": False,
-                "issues": [{"issue": "Failed to parse review response"}],
-                "summary": "Review parsing error",
+                "assessment": "Failed to parse review response",
             }
 
     def _parse_response(self, response: str) -> list[dict[str, Any]]:
         """Parse JSON response from LLM."""
-        # Clean up response - remove markdown code blocks if present
-        response = response.strip()
-        if response.startswith("```json"):
-            response = response[7:]
-        elif response.startswith("```"):
-            response = response[3:]
-        if response.endswith("```"):
-            response = response[:-3]
-        response = response.strip()
-
-        # Find JSON array in response
-        start = response.find("[")
-        end = response.rfind("]") + 1
-        if start != -1 and end > start:
-            response = response[start:end]
-
-        # Try to fix common JSON issues
-        # Sometimes LLM outputs [ "key": instead of [ {"key":
-        if re.search(r'\[\s*"[^"]+"\s*:', response):
-            # Wrap in objects - find each "key": pattern after [ or ,
-            response = re.sub(r'(\[|,)\s*("[^"]+")\s*:', r'\1 {\2:', response)
-            # Close any unclosed objects before ] or ,
-            response = re.sub(r'([^}])\s*(,\s*\{|\])', r'\1}\2', response)
-
         try:
-            stories = json.loads(response)
-        except json.JSONDecodeError as e:
-            # Try a more aggressive fix - maybe the LLM returned a single object
-            try:
-                single = json.loads("{" + response.strip("[]{}").strip() + "}")
-                stories = [single]
-            except json.JSONDecodeError:
-                raise ValueError(f"Failed to parse LLM response as JSON: {e}\nResponse: {response[:500]}")
+            result = self._extract_json_from_response(response, expect_array=True)
+        except ValueError as e:
+            raise ValueError(f"Failed to parse LLM response as JSON: {e}")
+
+        # Handle if we got an object instead of array
+        if isinstance(result, dict):
+            # Wrap single story in array
+            result = [result]
 
         # Validate structure
-        if not isinstance(stories, list):
-            raise ValueError(f"Expected list of stories, got {type(stories)}")
+        if not isinstance(result, list):
+            raise ValueError(f"Expected list of stories, got {type(result)}")
 
         # Ensure consistent structure
-        for story in stories:
+        for story in result:
             if "acceptance_criteria" not in story:
                 story["acceptance_criteria"] = []
             if "tasks" not in story:
                 story["tasks"] = []
 
-        return stories
+        return result

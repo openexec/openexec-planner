@@ -45,7 +45,7 @@ GEMINI_MODELS = {
 
 STORY_REVIEW_PROMPT = """You are a senior software architect reviewing generated user stories for implementation readiness.
 
-Your goal is to ensure the stories are SUFFICIENT FOR IMPLEMENTATION - a developer should be able to pick up any task and know exactly what to build.
+Your goal is to ensure the stories are SUFFICIENT FOR IMPLEMENTATION and have correct dependency modeling for parallel execution.
 
 REVIEW THE STORIES AGAINST THESE CRITERIA:
 
@@ -53,15 +53,16 @@ REVIEW THE STORIES AGAINST THESE CRITERIA:
 
 2. **No Redundancy**: Stories should not overlap. If US-001, US-005, and US-010 all cover "basic setup", they must be merged into one.
 
-3. **Quality & Correctness**: No parsing errors, hallucinations, or corrupted titles (e.g., a story titled "**Acceptance Criteria:**" is invalid).
+3. **Dependency Correctness**: Check the "depends_on" lists. 
+   - Foundational stories (Docker, Schema, Shared Types) must be dependencies for feature stories.
+   - Sequential tasks within a story must have internal dependencies.
+   - Independent stories/tasks should have empty "depends_on" to allow parallelism.
 
-4. **Acceptance Criteria**: Must be extracted from the intent document, not null or generic. These define "done".
+4. **Quality & Correctness**: No parsing errors, hallucinations, or corrupted titles.
 
-5. **Specific Tasks**: Tasks must be technical and actionable:
-   - BAD: "Design: Plan implementation", "Implement: Build feature", "Test: Verify"
-   - GOOD: "Create Dockerfile with multi-stage build", "Configure docker-compose volumes", "Add health check endpoint"
+5. **Acceptance Criteria**: Must be extracted from the intent document, not null or generic. These define "done".
 
-6. **Technical Completeness**: All technical requirements from the intent must appear as specific tasks.
+6. **Specific Tasks**: Tasks must be technical and actionable.
 
 ORIGINAL INTENT:
 {intent}
@@ -75,23 +76,19 @@ Return a JSON object:
   "assessment": "The stories are not sufficient for implementation because...",
   "key_issues": [
     {{
-      "category": "Redundancy & Fragmentation",
-      "description": "There are 12 stories for 4 requirements. US-001, US-005, US-010 all cover the same goal.",
-      "examples": ["US-001 and US-010 both cover 'basic setup'"]
-    }},
-    {{
-      "category": "Generic Tasks",
-      "description": "All tasks follow 'Design/Implement/Test' template without specifics.",
-      "examples": ["US-002 Task 1: 'Implement: Build feature' - what feature? what files?"]
+      "category": "Dependency Error",
+      "description": "US-002 (API) should depend on US-001 (Docker/Schema), but depends_on is empty.",
+      "examples": ["US-002 is missing dependency on foundational story US-001"]
     }}
   ],
   "refactoring_plan": {{
-    "goal": "Refactor to align with the N requirements in INTENT.md",
+    "goal": "Refactor to align with requirements and fix dependencies",
     "proposed_stories": [
       {{
         "story": "Docker Development Environment",
         "maps_to": "REQ-001",
-        "tasks": ["Create Dockerfile (dev target)", "Create docker-compose.yml", "Configure hot-reload volumes"]
+        "depends_on": [],
+        "tasks": ["Create Dockerfile", "Create docker-compose.yml"]
       }}
     ]
   }}
@@ -120,6 +117,7 @@ Follow the reviewer's refactoring_plan exactly. Generate the proposed stories wi
 2. Specific, technical tasks as listed in the plan
 3. Acceptance criteria extracted from the intent document
 4. Proper IDs: US-001, US-002, etc. and T-US-001-001, T-US-001-002, etc.
+5. DEPENDENCIES: Model dependencies via "depends_on" lists for stories and tasks.
 
 OUTPUT FORMAT - JSON array:
 [
@@ -128,12 +126,14 @@ OUTPUT FORMAT - JSON array:
     "title": "Story title from refactoring plan",
     "description": "As a developer, I want...",
     "requirement_id": "REQ-001",
+    "depends_on": [],
     "acceptance_criteria": ["Specific criteria from intent"],
     "tasks": [
       {{
         "id": "T-US-001-001",
         "title": "Specific task from plan",
-        "description": "Technical details for implementation"
+        "description": "Technical details",
+        "depends_on": []
       }}
     ]
   }}
@@ -146,12 +146,14 @@ STORY_GENERATION_PROMPT = """You are a software architect generating user storie
 Analyze the intent document below and generate a JSON array of user stories.
 
 RULES:
-1. Create ONE story per requirement (REQ-XXX) in the document
-2. Each story should have specific, actionable tasks (not generic "Design/Implement/Test")
-3. Extract acceptance criteria directly from the intent document
-4. Use technical, specific task descriptions (e.g., "Create Dockerfile with multi-stage build" not "Implement container")
-5. Avoid redundancy - do not create multiple stories for the same functionality
-6. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number
+1. Create ONE story per requirement (REQ-XXX) in the document.
+2. Each story should have specific, actionable tasks (not generic "Design/Implement/Test").
+3. Extract acceptance criteria directly from the intent document.
+4. DEPENDENCIES: Model execution dependencies via "depends_on" lists (IDs only).
+   - Foundational stories (Docker, DB Schema, Configs, Shared Types) must be dependencies for stories that use them.
+   - Sequential tasks within a story must also include "depends_on".
+5. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
+6. Avoid redundancy - do not create multiple stories for the same functionality.
 
 OUTPUT FORMAT (JSON array):
 [
@@ -160,21 +162,39 @@ OUTPUT FORMAT (JSON array):
     "title": "Docker Development Environment",
     "description": "As a developer, I want a Docker-based development environment so that I can develop locally with hot-reload",
     "requirement_id": "REQ-001",
+    "depends_on": [],
     "acceptance_criteria": [
       "Container starts with 'docker compose up'",
-      "Source code changes trigger automatic rebuild",
-      "Node modules are persisted in named volume"
+      "Source code changes trigger automatic rebuild"
     ],
     "tasks": [
       {{
         "id": "T-US-001-001",
         "title": "Create development Dockerfile",
-        "description": "Create Dockerfile with development target stage, Node.js base image, and hot-reload support"
+        "description": "Create Dockerfile with development target stage",
+        "depends_on": []
       }},
       {{
         "id": "T-US-001-002",
         "title": "Create docker-compose.yml",
-        "description": "Configure docker-compose with volume mounts, port mapping, and environment variables"
+        "description": "Configure docker-compose with volume mounts",
+        "depends_on": ["T-US-001-001"]
+      }}
+    ]
+  }},
+  {{
+    "id": "US-002",
+    "title": "User API Endpoints",
+    "description": "As a user, I want to manage my profile via API",
+    "requirement_id": "REQ-002",
+    "depends_on": ["US-001"],
+    "acceptance_criteria": ["GET /user returns 200"],
+    "tasks": [
+      {{
+        "id": "T-US-002-001",
+        "title": "Implement User Controller",
+        "description": "Create FastAPI controller for users",
+        "depends_on": []
       }}
     ]
   }}

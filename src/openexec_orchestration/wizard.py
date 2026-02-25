@@ -47,8 +47,8 @@ class Goal(BaseModel):
     """A high-level, measurable project objective."""
     id: str
     description: str
-    success_criteria: str  # How do we know this goal is met?
-    verification_method: str  # Manual check, Automated test, Metric?
+    success_criteria: str = ""  # How do we know this goal is met?
+    verification_method: str = ""  # Manual check, Automated test, Metric?
 
 
 class Entity(BaseModel):

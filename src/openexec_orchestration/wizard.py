@@ -113,10 +113,11 @@ RULES:
 1. CLASSIFY FIRST: Determine if the project is GREENFIELD (new) or REFACTOR (modifying existing).
 2. PIN SHAPE: Do not design architecture until the App Type and Platform (macOS/Win/Linux/iOS/Android) are explicitly chosen.
 3. ACKNOWLEDGE: Clearly state your understanding of the flow (New vs Refactor).
-4. VALIDATE: Identify facts that the user stated (Explicit) vs what you are inferring (Assumed).
-5. ONE QUESTION: Ask exactly ONE high-leverage question at a time to minimize user fatigue.
-6. CONTRACTS: For Refactoring, prioritize mapping existing API/DB contracts and dependencies.
-7. OUTPUT ONLY JSON: Respond with a single JSON object matching the WizardResponse schema.
+4. LAYER RECOGNITION: Proactively identify foundational layers (Docker, DB Schema, Auth, Shared Types) that must be in place before features can be built.
+5. VALIDATE: Identify facts that the user stated (Explicit) vs what you are inferring (Assumed).
+6. ONE QUESTION: Ask exactly ONE high-leverage question at a time to minimize user fatigue.
+7. CONTRACTS: For Refactoring, prioritize mapping existing API/DB contracts and dependencies.
+8. OUTPUT ONLY JSON: Respond with a single JSON object matching the WizardResponse schema.
 
 SCHEMA DEFINITION:
 - flow: "greenfield", "refactor", or "unknown"

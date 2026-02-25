@@ -47,6 +47,7 @@ class Entity(BaseModel):
     """A core business noun and its role."""
     name: str
     description: str
+    data_source: str = ""
     attributes: List[str] = Field(default_factory=list)
 
 
@@ -114,10 +115,11 @@ RULES:
 2. PIN SHAPE: Do not design architecture until the App Type and Platform (macOS/Win/Linux/iOS/Android) are explicitly chosen.
 3. ACKNOWLEDGE: Clearly state your understanding of the flow (New vs Refactor).
 4. LAYER RECOGNITION: Proactively identify foundational layers (Docker, DB Schema, Auth, Shared Types) that must be in place before features can be built.
-5. VALIDATE: Identify facts that the user stated (Explicit) vs what you are inferring (Assumed).
-6. ONE QUESTION: Ask exactly ONE high-leverage question at a time to minimize user fatigue.
-7. CONTRACTS: For Refactoring, prioritize mapping existing API/DB contracts and dependencies.
-8. OUTPUT ONLY JSON: Respond with a single JSON object matching the WizardResponse schema.
+5. DATA LOCALITY: For every core entity, determine its source of truth (e.g., Local Database, External API like Supabase, Third-party service).
+6. VALIDATE: Identify facts that the user stated (Explicit) vs what you are inferring (Assumed).
+7. ONE QUESTION: Ask exactly ONE high-leverage question at a time to minimize user fatigue.
+8. CONTRACTS: For Refactoring, prioritize mapping existing API/DB contracts and dependencies.
+9. OUTPUT ONLY JSON: Respond with a single JSON object matching the WizardResponse schema.
 
 SCHEMA DEFINITION:
 - flow: "greenfield", "refactor", or "unknown"

@@ -130,12 +130,15 @@ OUTPUT FORMAT - JSON array:
     "requirement_id": "REQ-001",
     "depends_on": [],
     "acceptance_criteria": ["Specific criteria from intent"],
+    "verification_script": "npm test",
+    "contract": "",
     "tasks": [
       {{
         "id": "T-US-001-001",
         "title": "Specific task from plan",
         "description": "Technical details",
-        "depends_on": []
+        "depends_on": [],
+        "verification_script": "pytest test_file.py"
       }}
     ]
   }}
@@ -149,13 +152,21 @@ Analyze the intent document below and generate a JSON array of user stories.
 
 RULES:
 1. Create ONE story per requirement (REQ-XXX) in the document.
-2. Each story should have specific, actionable tasks (not generic "Design/Implement/Test").
-3. Extract acceptance criteria directly from the intent document.
+2. VERTICAL SLICE / TEST-DRIVEN: Tasks within a feature story MUST follow a Test-Driven sequence:
+   - Task 1: Define API Schema / Contract & Error Codes
+   - Task 2: Implement Mock Handlers & Unit Tests
+   - Task 3: Implement Core Logic & DB Integration
+3. REFACTOR DISCOVERY: If the intent specifies a REFACTOR flow, the FIRST story must be a Discovery story with these tasks:
+   - Extract existing environment variables and dependencies.
+   - Map existing API surface area (inputs/outputs).
+   - Verify local buildability of legacy state.
 4. DEPENDENCIES: Model execution dependencies via "depends_on" lists (IDs only).
    - Foundational stories (Docker, DB Schema, Configs, Shared Types) must be dependencies for stories that use them.
    - Sequential tasks within a story must also include "depends_on".
-5. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
-6. Avoid redundancy - do not create multiple stories for the same functionality.
+5. VERIFIABILITY: Generate an executable 'verification_script' (a shell command, e.g. 'curl -f http://localhost:3000/api/health' or 'npm test') that automatically verifies the acceptance criteria.
+6. CONTRACTS: Generate a 'contract' field for stories that provide an API or interface, allowing parallel dependent stories to use it as a mock source.
+7. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
+8. Avoid redundancy - do not create multiple stories for the same functionality.
 
 OUTPUT FORMAT (JSON array):
 [
@@ -169,18 +180,22 @@ OUTPUT FORMAT (JSON array):
       "Container starts with 'docker compose up'",
       "Source code changes trigger automatic rebuild"
     ],
+    "verification_script": "docker compose config && docker compose build",
+    "contract": "",
     "tasks": [
       {{
         "id": "T-US-001-001",
         "title": "Create development Dockerfile",
         "description": "Create Dockerfile with development target stage",
-        "depends_on": []
+        "depends_on": [],
+        "verification_script": "docker build --target dev ."
       }},
       {{
         "id": "T-US-001-002",
         "title": "Create docker-compose.yml",
         "description": "Configure docker-compose with volume mounts",
-        "depends_on": ["T-US-001-001"]
+        "depends_on": ["T-US-001-001"],
+        "verification_script": "docker compose config"
       }}
     ]
   }},
@@ -191,12 +206,29 @@ OUTPUT FORMAT (JSON array):
     "requirement_id": "REQ-002",
     "depends_on": ["US-001"],
     "acceptance_criteria": ["GET /user returns 200"],
+    "verification_script": "curl -f http://localhost:3000/user",
+    "contract": "GET /user -> {{ id: string, name: string }}",
     "tasks": [
       {{
         "id": "T-US-002-001",
-        "title": "Implement User Controller",
-        "description": "Create FastAPI controller for users",
-        "depends_on": []
+        "title": "Define User API Schema & Contract",
+        "description": "Create OpenAPI/Pydantic schemas for User entity",
+        "depends_on": [],
+        "verification_script": "pytest tests/test_schema.py"
+      }},
+      {{
+        "id": "T-US-002-002",
+        "title": "Implement Mock Handlers & Unit Tests",
+        "description": "Create mock endpoints and test cases",
+        "depends_on": ["T-US-002-001"],
+        "verification_script": "pytest tests/test_api.py"
+      }},
+      {{
+        "id": "T-US-002-003",
+        "title": "Implement Core Logic & DB Integration",
+        "description": "Connect API to database",
+        "depends_on": ["T-US-002-002"],
+        "verification_script": "pytest tests/"
       }}
     ]
   }}
@@ -206,6 +238,7 @@ INTENT DOCUMENT:
 {intent}
 
 Generate the JSON array of stories. Output ONLY valid JSON, no markdown or explanations."""
+
 
 
 class LLMStoryGenerator:

@@ -181,7 +181,15 @@ class IntentWizard:
         Returns:
             WizardResponse containing updated state and next question
         """
-        prompt = WIZARD_SYSTEM_PROMPT + f"\n\nCurrent Intent State:\n{self.state.model_dump_json(indent=2)}\n\nUser Message: {message}"
+        # Scan message for mentioned files and include context
+        context_files = self._scan_for_files(message)
+        enhanced_message = message
+        if context_files:
+            enhanced_message += "\n\nFILE CONTEXT PROVIDED:\n"
+            for path, content in context_files.items():
+                enhanced_message += f"\n--- {path} ---\n{content}\n"
+
+        prompt = WIZARD_SYSTEM_PROMPT + f"\n\nCurrent Intent State:\n{self.state.model_dump_json(indent=2)}\n\nUser Message: {enhanced_message}"
         
         # Use LLM generator to process the prompt
         response_text = self.generator._call_llm(prompt)
@@ -199,6 +207,30 @@ class IntentWizard:
             result.is_complete = True
             
         return result
+
+    def _scan_for_files(self, message: str) -> Dict[str, str]:
+        """Scan message for potential file paths and read their content."""
+        import os
+        from pathlib import Path
+        
+        # Simple heuristic for file paths
+        # Look for words containing / or .md, .py, .txt etc.
+        words = message.split()
+        files = {}
+        
+        for word in words:
+            # Clean punctuation
+            clean_word = word.strip(".,!?;:\"'")
+            if "/" in clean_word or "." in clean_word:
+                try:
+                    p = Path(clean_word)
+                    if p.is_file():
+                        # Don't read huge files
+                        if p.stat().st_size < 100 * 1024: # 100KB limit
+                            files[clean_word] = p.read_text(errors="ignore")
+                except Exception:
+                    continue
+        return files
 
     def render_intent_md(self) -> str:
         """Render the current state as a valid INTENT.md document."""

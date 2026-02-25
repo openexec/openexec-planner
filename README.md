@@ -51,73 +51,40 @@ pip install -e .
 
 ## Usage
 
-### Interactive Intent Wizard
+The orchestration engine follows a logical project lifecycle:
 
-Start a guided interview to define your project shape, platform, and contracts:
+### 1. Gather Intent (Wizard)
+
+Start a guided interview to define your project shape, platform, and contracts. This is the recommended first step for any new project or refactor.
 
 ```bash
 openexec-orchestration wizard --message "I want to build a new mobile app for gym tracking"
 ```
 
-The wizard will track state and ask follow-up questions until the intent is "Ready".
+The wizard will track state and ask follow-up questions until the intent is "Ready", then render an `INTENT.md` file.
 
-### Parse Intent Document
+### 2. Generate Plan (Generate)
+
+Once you have an `INTENT.md` (either from the wizard or manual), transform it into structured user stories and tasks.
 
 ```bash
-openexec-orchestration plan INTENT.md
+openexec-orchestration generate INTENT.md -o .openexec/stories.json
 ```
 
-Outputs:
-- `stories.json` — User stories with acceptance criteria
-- `tasks.json` — Atomic tasks with dependencies
-- `goal-tree.json` — Hierarchical goal structure
+### 3. Analyze Architecture (Build Tree)
 
-### Generate Stories from Intent
+Decompose the goals into a hierarchical tree to visualize the project structure.
 
-```python
-from openexec_orchestration import IntentParser, StoryGenerator
-
-parser = IntentParser()
-intent = parser.parse("INTENT.md")
-
-generator = StoryGenerator()
-stories = generator.generate(intent)
-
-for story in stories:
-    print(f"{story.id}: {story.title}")
-    for criterion in story.acceptance_criteria:
-        print(f"  - {criterion}")
+```bash
+openexec-orchestration build-tree INTENT.md -o .openexec/goal_tree.json
 ```
 
-### Build Goal Tree
+### 4. Order Execution (Schedule)
 
-```python
-from openexec_orchestration import GoalTreeBuilder
+Generate an optimized execution schedule based on task dependencies.
 
-builder = GoalTreeBuilder()
-tree = builder.build(intent)
-
-# Visualize
-tree.print()
-# Goal: Build authentication system
-#   ├── Subgoal: User registration
-#   │   ├── Task: Create registration form
-#   │   └── Task: Add email validation
-#   └── Subgoal: User login
-#       ├── Task: Create login form
-#       └── Task: Implement JWT tokens
-```
-
-### Schedule Tasks
-
-```python
-from openexec_orchestration import Scheduler
-
-scheduler = Scheduler()
-ordered_tasks = scheduler.schedule(tasks, dependencies)
-
-for task in ordered_tasks:
-    print(f"{task.id}: {task.title} (deps: {task.dependencies})")
+```bash
+openexec-orchestration schedule .openexec/stories.json -o .openexec/schedule.json
 ```
 
 ## Configuration

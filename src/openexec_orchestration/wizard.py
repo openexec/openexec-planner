@@ -54,17 +54,17 @@ class Goal(BaseModel):
 class Entity(BaseModel):
     """A core business noun and its role."""
     name: str
-    description: str
+    description: str = ""
     data_source: str = ""
     attributes: List[str] = Field(default_factory=list)
 
 
 class Contract(BaseModel):
     """An integration point between components."""
-    source: str
-    target: str
-    protocol: str  # e.g., REST, GraphQL, gRPC
-    details: str
+    source: str = ""
+    target: str = ""
+    protocol: str = ""  # e.g., REST, GraphQL, gRPC
+    details: str = ""
 
 
 class IntentState(BaseModel):

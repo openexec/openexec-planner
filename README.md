@@ -21,6 +21,7 @@ The **OpenExec Orchestration** module transforms high-level project intents (PRD
 - **Intent Parsing** — Extracts goals and requirements from PRD documents
 - **Goal Tree Decomposition** — Breaks down objectives into atomic tasks
 - **Story Generation** — Creates user stories with acceptance criteria
+- **Dependency Modeling** — Infers and models execution prerequisites for parallel processing
 - **Dependency Analysis** — Identifies task relationships and ordering
 - **Quality Gate Templates** — Language-aware testing configurations
 - **Context Awareness** — Integrates with codebase analysis

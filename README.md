@@ -17,6 +17,7 @@ The **OpenExec Orchestration** module transforms high-level project intents (PRD
 
 ## Features
 
+- **Guided Intent Interviewer** — Interactive chat to gather constraints and shape
 - **Intent Parsing** — Extracts goals and requirements from PRD documents
 - **Goal Tree Decomposition** — Breaks down objectives into atomic tasks
 - **Story Generation** — Creates user stories with acceptance criteria
@@ -49,6 +50,16 @@ pip install -e .
 ```
 
 ## Usage
+
+### Interactive Intent Wizard
+
+Start a guided interview to define your project shape, platform, and contracts:
+
+```bash
+openexec-orchestration wizard --message "I want to build a new mobile app for gym tracking"
+```
+
+The wizard will track state and ask follow-up questions until the intent is "Ready".
 
 ### Parse Intent Document
 

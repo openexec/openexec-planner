@@ -263,7 +263,13 @@ def cmd_generate(args: argparse.Namespace) -> int:
         fallback_generator = StoryGenerator()
         stories = fallback_generator.generate(intent)
 
-    output = json.dumps(stories, indent=2)
+    # Wrap stories in versioned object
+    result_data = {
+        "schema_version": "1.0",
+        "stories": stories
+    }
+
+    output = json.dumps(result_data, indent=2)
     if args.output:
         args.output.write_text(output)
         print(f"Stories written to {args.output}")

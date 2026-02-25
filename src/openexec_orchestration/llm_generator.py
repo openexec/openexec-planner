@@ -53,18 +53,20 @@ REVIEW THE STORIES AGAINST THESE CRITERIA:
 
 1. **Requirement Coverage**: Each REQ-XXX in the intent must map to exactly ONE story. No requirements should be missing or buried.
 
-2. **No Redundancy**: Stories should not overlap. If US-001, US-005, and US-010 all cover "basic setup", they must be merged into one.
+2. **Goal Convergence**: Every story must link to a Goal ID. Most importantly, do these stories collectively ACHIEVE the goals defined in the intent? If a goal (e.g., G-001) has no stories that directly satisfy its success criteria, reject the plan.
 
-3. **Dependency Correctness**: Check the "depends_on" lists. 
+3. **No Redundancy**: Stories should not overlap. If US-001, US-005, and US-010 all cover "basic setup", they must be merged into one.
+
+4. **Dependency Correctness**: Check the "depends_on" lists. 
    - Foundational stories (Docker, Schema, Shared Types) must be dependencies for feature stories.
    - Sequential tasks within a story must have internal dependencies.
    - Independent stories/tasks should have empty "depends_on" to allow parallelism.
 
-4. **Quality & Correctness**: No parsing errors, hallucinations, or corrupted titles.
+5. **Quality & Correctness**: No parsing errors, hallucinations, or corrupted titles.
 
-5. **Acceptance Criteria**: Must be extracted from the intent document, not null or generic. These define "done".
+6. **Acceptance Criteria**: Must be extracted from the intent document, not null or generic. These define "done".
 
-6. **Specific Tasks**: Tasks must be technical and actionable.
+7. **Specific Tasks**: Tasks must be technical and actionable.
 
 ORIGINAL INTENT:
 {intent}
@@ -78,17 +80,18 @@ Return a JSON object:
   "assessment": "The stories are not sufficient for implementation because...",
   "key_issues": [
     {{
-      "category": "Dependency Error",
-      "description": "US-002 (API) should depend on US-001 (Docker/Schema), but depends_on is empty.",
-      "examples": ["US-002 is missing dependency on foundational story US-001"]
+      "category": "Goal Divergence",
+      "description": "Goal G-001 (Automated Backup) is defined in the intent, but no stories implement the backup logic.",
+      "examples": ["G-001 has no mapping stories"]
     }}
   ],
   "refactoring_plan": {{
-    "goal": "Refactor to align with requirements and fix dependencies",
+    "goal": "Refactor to align with requirements, fix dependencies, and ensure goal convergence",
     "proposed_stories": [
       {{
         "story": "Docker Development Environment",
         "maps_to": "REQ-001",
+        "goal_id": "G-001",
         "depends_on": [],
         "tasks": ["Create Dockerfile", "Create docker-compose.yml"]
       }}
@@ -152,21 +155,22 @@ Analyze the intent document below and generate a JSON array of user stories.
 
 RULES:
 1. Create ONE story per requirement (REQ-XXX) in the document.
-2. VERTICAL SLICE / TEST-DRIVEN: Tasks within a feature story MUST follow a Test-Driven sequence:
+2. GOAL LINKING: Every story must include a "goal_id" (G-001, etc.) from the Goals section of the intent. If no Goal IDs exist, infer them from the titles.
+3. VERTICAL SLICE / TEST-DRIVEN: Tasks within a feature story MUST follow a Test-Driven sequence:
    - Task 1: Define API Schema / Contract & Error Codes
    - Task 2: Implement Mock Handlers & Unit Tests
    - Task 3: Implement Core Logic & DB Integration
-3. REFACTOR DISCOVERY: If the intent specifies a REFACTOR flow, the FIRST story must be a Discovery story with these tasks:
+4. REFACTOR DISCOVERY: If the intent specifies a REFACTOR flow, the FIRST story must be a Discovery story with these tasks:
    - Extract existing environment variables and dependencies.
    - Map existing API surface area (inputs/outputs).
    - Verify local buildability of legacy state.
-4. DEPENDENCIES: Model execution dependencies via "depends_on" lists (IDs only).
+5. DEPENDENCIES: Model execution dependencies via "depends_on" lists (IDs only).
    - Foundational stories (Docker, DB Schema, Configs, Shared Types) must be dependencies for stories that use them.
    - Sequential tasks within a story must also include "depends_on".
-5. VERIFIABILITY: Generate an executable 'verification_script' (a shell command, e.g. 'curl -f http://localhost:3000/api/health' or 'npm test') that automatically verifies the acceptance criteria.
-6. CONTRACTS: Generate a 'contract' field for stories that provide an API or interface, allowing parallel dependent stories to use it as a mock source.
-7. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
-8. Avoid redundancy - do not create multiple stories for the same functionality.
+6. VERIFIABILITY: Generate an executable 'verification_script' (a shell command, e.g. 'curl -f http://localhost:3000/api/health' or 'npm test') that automatically verifies the acceptance criteria.
+7. CONTRACTS: Generate a 'contract' field for stories that provide an API or interface, allowing parallel dependent stories to use it as a mock source.
+8. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
+9. Avoid redundancy - do not create multiple stories for the same functionality.
 
 OUTPUT FORMAT (JSON array):
 [
@@ -175,6 +179,7 @@ OUTPUT FORMAT (JSON array):
     "title": "Docker Development Environment",
     "description": "As a developer, I want a Docker-based development environment so that I can develop locally with hot-reload",
     "requirement_id": "REQ-001",
+    "goal_id": "G-001",
     "depends_on": [],
     "acceptance_criteria": [
       "Container starts with 'docker compose up'",
@@ -196,39 +201,6 @@ OUTPUT FORMAT (JSON array):
         "description": "Configure docker-compose with volume mounts",
         "depends_on": ["T-US-001-001"],
         "verification_script": "docker compose config"
-      }}
-    ]
-  }},
-  {{
-    "id": "US-002",
-    "title": "User API Endpoints",
-    "description": "As a user, I want to manage my profile via API",
-    "requirement_id": "REQ-002",
-    "depends_on": ["US-001"],
-    "acceptance_criteria": ["GET /user returns 200"],
-    "verification_script": "curl -f http://localhost:3000/user",
-    "contract": "GET /user -> {{ id: string, name: string }}",
-    "tasks": [
-      {{
-        "id": "T-US-002-001",
-        "title": "Define User API Schema & Contract",
-        "description": "Create OpenAPI/Pydantic schemas for User entity",
-        "depends_on": [],
-        "verification_script": "pytest tests/test_schema.py"
-      }},
-      {{
-        "id": "T-US-002-002",
-        "title": "Implement Mock Handlers & Unit Tests",
-        "description": "Create mock endpoints and test cases",
-        "depends_on": ["T-US-002-001"],
-        "verification_script": "pytest tests/test_api.py"
-      }},
-      {{
-        "id": "T-US-002-003",
-        "title": "Implement Core Logic & DB Integration",
-        "description": "Connect API to database",
-        "depends_on": ["T-US-002-002"],
-        "verification_script": "pytest tests/"
       }}
     ]
   }}

@@ -202,13 +202,17 @@ class IntentWizard:
 
     def render_intent_md(self) -> str:
         """Render the current state as a valid INTENT.md document."""
-        # TODO: Implement template-based rendering
         lines = []
         lines.append(f"# Intent: {self.state.project_name or 'New Project'}")
         lines.append("")
         lines.append("## Goals")
-        lines.append(f"- {self.state.problem_statement}")
-        lines.append(f"- Success Metric: {self.state.success_metric}")
+        if self.state.problem_statement:
+            lines.append(f"- {self.state.problem_statement}")
+        for goal in self.state.primary_goals:
+            lines.append(f"### {goal.id}: {goal.description}")
+            lines.append(f"- Success Criteria: {goal.success_criteria}")
+            lines.append(f"- Verification: {goal.verification_method}")
+        lines.append(f"- Global Success Metric: {self.state.success_metric}")
         lines.append("")
         lines.append("## Requirements")
         lines.append(f"### REQ-001: Core Architecture")
@@ -216,6 +220,16 @@ class IntentWizard:
         if self.state.platforms:
             lines.append(f"- Platforms: {', '.join([p.value for p in self.state.platforms])}")
         
+        lines.append("")
+        lines.append("### REQ-002: Data Source Mapping")
+        if self.state.entities:
+            for entity in self.state.entities:
+                lines.append(f"- {entity.name}: {entity.description}")
+                if entity.data_source:
+                    lines.append(f"  - Source of Truth: {entity.data_source}")
+        else:
+            lines.append("- No core entities defined yet.")
+
         if self.state.flow == ProjectFlow.REFACTOR:
             lines.append("")
             lines.append("## Legacy Context")

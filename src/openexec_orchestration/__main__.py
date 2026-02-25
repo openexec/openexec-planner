@@ -75,6 +75,14 @@ def main() -> int:
     # version command
     subparsers.add_parser("version", help="Show version")
 
+    # wizard command
+    wizard_parser = subparsers.add_parser("wizard", help="Interactive intent gathering")
+    wizard_parser.add_argument("--message", "-m", help="User message")
+    wizard_parser.add_argument("--state", "-s", help="Current state as JSON string")
+    wizard_parser.add_argument("--state-file", type=Path, help="Path to state JSON file")
+    wizard_parser.add_argument("--model", default="sonnet", help="Model to use")
+    wizard_parser.add_argument("--render", action="store_true", help="Render current state to INTENT.md")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -98,6 +106,39 @@ def main() -> int:
     if args.command == "schedule":
         return cmd_schedule(args)
 
+    if args.command == "wizard":
+        return cmd_wizard(args)
+
+    return 0
+
+
+def cmd_wizard(args: argparse.Namespace) -> int:
+    """Handle wizard command."""
+    from .wizard import IntentWizard, IntentState
+    
+    wizard = IntentWizard(model=args.model)
+    
+    # Load state
+    if args.state:
+        wizard.state = IntentState.model_validate_json(args.state)
+    elif args.state_file and args.state_file.exists():
+        wizard.state = IntentState.model_validate_json(args.state_file.read_text())
+        
+    if args.render:
+        print(wizard.render_intent_md())
+        return 0
+        
+    if not args.message:
+        print("Error: --message required for wizard interaction", file=sys.stderr)
+        return 1
+        
+    result = wizard.process_message(args.message)
+    
+    # If a state file was provided, update it
+    if args.state_file:
+        args.state_file.write_text(wizard.state.model_dump_json(indent=2))
+        
+    print(result.model_dump_json(indent=2))
     return 0
 
 

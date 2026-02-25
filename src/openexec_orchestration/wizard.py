@@ -1,0 +1,219 @@
+"""Guided Intent Interviewer logic.
+
+This module handles the structured interaction with the user to gather
+requirements and constraints before project execution.
+"""
+
+import json
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
+
+class ProjectFlow(str, Enum):
+    """The fundamental nature of the project."""
+    GREENFIELD = "greenfield"
+    REFACTOR = "refactor"
+    UNKNOWN = "unknown"
+
+
+class AppType(str, Enum):
+    """Type of application being built."""
+    CLI = "cli"
+    WEB = "web"
+    MOBILE = "mobile"
+    DESKTOP = "desktop"
+    API = "api"
+    LIBRARY = "library"
+    PLUGIN = "plugin"
+    OTHER = "other"
+    UNKNOWN = "unknown"
+
+
+class Platform(str, Enum):
+    """Target platforms."""
+    MACOS = "macos"
+    WINDOWS = "windows"
+    LINUX = "linux"
+    IOS = "ios"
+    ANDROID = "android"
+    WEB = "web"
+    CROSS_PLATFORM = "cross-platform"
+    UNKNOWN = "unknown"
+
+
+class Entity(BaseModel):
+    """A core business noun and its role."""
+    name: str
+    description: str
+    attributes: List[str] = Field(default_factory=list)
+
+
+class Contract(BaseModel):
+    """An integration point between components."""
+    source: str
+    target: str
+    protocol: str  # e.g., REST, GraphQL, gRPC
+    details: str
+
+
+class IntentState(BaseModel):
+    """The structured state of the project intent."""
+    project_name: str = ""
+    flow: ProjectFlow = ProjectFlow.UNKNOWN
+    app_type: AppType = AppType.UNKNOWN
+    platforms: List[Platform] = Field(default_factory=list)
+    problem_statement: str = ""
+    success_metric: str = ""
+
+    # Architecture
+    entities: List[Entity] = Field(default_factory=list)
+    contracts: List[Contract] = Field(default_factory=list)
+    system_boundary: str = ""  # What's inside vs outside
+
+    # Refactoring & Legacy
+    legacy_repo_path: Optional[str] = None
+    refactor_scope: Optional[str] = None  # e.g., Component, System
+    dependencies: List[str] = Field(default_factory=list)  # e.g., Supabase, Redis
+
+    # Constraints & SLOs
+    slos: Dict[str, str] = Field(default_factory=dict)
+    constraints: List[str] = Field(default_factory=list)
+
+    # Internal Tracking
+    explicit_facts: List[str] = Field(default_factory=list)
+    assumptions: List[str] = Field(default_factory=list)
+
+    def is_ready(self) -> bool:
+        """Check if the intent has reached minimum viability."""
+        if self.flow == ProjectFlow.UNKNOWN:
+            return False
+        if self.app_type == AppType.UNKNOWN:
+            return False
+        if not self.problem_statement:
+            return False
+        
+        # Desktop/Mobile requires explicit platforms
+        if self.app_type in [AppType.DESKTOP, AppType.MOBILE] and not self.platforms:
+            return False
+            
+        # Refactor requires repo path
+        if self.flow == ProjectFlow.REFACTOR and not self.legacy_repo_path:
+            return False
+            
+        return True
+
+
+WIZARD_SYSTEM_PROMPT = """You are an expert Software Architect interviewing a user to gather project requirements for the OpenExec orchestration engine.
+
+Your goal is to fill the provided JSON schema while following a strict "Constraint-First" policy.
+
+RULES:
+1. CLASSIFY FIRST: Determine if the project is GREENFIELD (new) or REFACTOR (modifying existing).
+2. PIN SHAPE: Do not design architecture until the App Type and Platform (macOS/Win/Linux/iOS/Android) are explicitly chosen.
+3. ACKNOWLEDGE: Clearly state your understanding of the flow (New vs Refactor).
+4. VALIDATE: Identify facts that the user stated (Explicit) vs what you are inferring (Assumed).
+5. ONE QUESTION: Ask exactly ONE high-leverage question at a time to minimize user fatigue.
+6. CONTRACTS: For Refactoring, prioritize mapping existing API/DB contracts and dependencies.
+7. OUTPUT ONLY JSON: Respond with a single JSON object matching the WizardResponse schema.
+
+SCHEMA DEFINITION:
+- flow: "greenfield", "refactor", or "unknown"
+- app_type: "cli", "web", "mobile", "desktop", "api", "library", "plugin", "other", "unknown"
+- platforms: List of "macos", "windows", "linux", "ios", "android", "web", "cross-platform"
+- legacy_repo_path: Required if flow is "refactor"
+- explicit_facts: List of strings the user explicitly stated.
+- assumptions: List of strings you are assuming but need confirmation on.
+
+RESPONSE FORMAT (JSON):
+{{
+  "updated_state": {{ ... }},
+  "next_question": "string",
+  "acknowledgement": "string (optional)",
+  "is_complete": boolean,
+  "new_facts": ["string"],
+  "new_assumptions": ["string"]
+}}
+"""
+
+
+class WizardResponse(BaseModel):
+    """Response from the wizard agent."""
+    updated_state: IntentState
+    next_question: str
+    acknowledgement: Optional[str] = None
+    is_complete: bool = False
+    new_facts: List[str] = Field(default_factory=list)
+    new_assumptions: List[str] = Field(default_factory=list)
+
+
+class IntentWizard:
+    """Manages the interactive intent gathering session."""
+
+    def __init__(self, model: str = "sonnet"):
+        """Initialize wizard with LLM model."""
+        from openexec_orchestration.llm_generator import LLMStoryGenerator
+        self.generator = LLMStoryGenerator(model=model)
+        self.state = IntentState()
+
+    def process_message(self, message: str) -> WizardResponse:
+        """Process a user message and return the next wizard response.
+
+        Args:
+            message: User's input text
+
+        Returns:
+            WizardResponse containing updated state and next question
+        """
+        prompt = WIZARD_SYSTEM_PROMPT + f"\n\nCurrent Intent State:\n{self.state.model_dump_json(indent=2)}\n\nUser Message: {message}"
+        
+        # Use LLM generator to process the prompt
+        response_text = self.generator._call_llm(prompt)
+        
+        # Parse response using the generator's JSON extraction
+        # Note: we expect a dict matching WizardResponse
+        data = self.generator._extract_json_from_response(response_text, expect_array=False)
+        
+        # Update local state
+        result = WizardResponse.model_validate(data)
+        self.state = result.updated_state
+        
+        # Check if actually complete based on schema rules
+        if self.state.is_ready():
+            result.is_complete = True
+            
+        return result
+
+    def render_intent_md(self) -> str:
+        """Render the current state as a valid INTENT.md document."""
+        # TODO: Implement template-based rendering
+        lines = []
+        lines.append(f"# Intent: {self.state.project_name or 'New Project'}")
+        lines.append("")
+        lines.append("## Goals")
+        lines.append(f"- {self.state.problem_statement}")
+        lines.append(f"- Success Metric: {self.state.success_metric}")
+        lines.append("")
+        lines.append("## Requirements")
+        lines.append(f"### REQ-001: Core Architecture")
+        lines.append(f"- Shape: {self.state.app_type.value}")
+        if self.state.platforms:
+            lines.append(f"- Platforms: {', '.join([p.value for p in self.state.platforms])}")
+        
+        if self.state.flow == ProjectFlow.REFACTOR:
+            lines.append("")
+            lines.append("## Legacy Context")
+            lines.append(f"- Repo: {self.state.legacy_repo_path}")
+            lines.append(f"- Scope: {self.state.refactor_scope}")
+            if self.state.dependencies:
+                lines.append("- Dependencies:")
+                for dep in self.state.dependencies:
+                    lines.append(f"  - {dep}")
+
+        lines.append("")
+        lines.append("## Constraints")
+        for constraint in self.state.constraints:
+            lines.append(f"- {constraint}")
+            
+        return "\n".join(lines)

@@ -172,44 +172,56 @@ RULES:
 8. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
 9. Avoid redundancy - do not create multiple stories for the same functionality.
 
-OUTPUT FORMAT (JSON array):
-[
-  {{
-    "id": "US-001",
-    "title": "Docker Development Environment",
-    "description": "As a developer, I want a Docker-based development environment so that I can develop locally with hot-reload",
-    "requirement_id": "REQ-001",
-    "goal_id": "G-001",
-    "depends_on": [],
-    "acceptance_criteria": [
-      "Container starts with 'docker compose up'",
-      "Source code changes trigger automatic rebuild"
-    ],
-    "verification_script": "docker compose config && docker compose build",
-    "contract": "",
-    "tasks": [
-      {{
-        "id": "T-US-001-001",
-        "title": "Create development Dockerfile",
-        "description": "Create Dockerfile with development target stage",
-        "depends_on": [],
-        "verification_script": "docker build --target dev ."
-      }},
-      {{
-        "id": "T-US-001-002",
-        "title": "Create docker-compose.yml",
-        "description": "Configure docker-compose with volume mounts",
-        "depends_on": ["T-US-001-001"],
-        "verification_script": "docker compose config"
-      }}
-    ]
-  }}
-]
+OUTPUT FORMAT (JSON object):
+{{
+  "schema_version": "1.1",
+  "goals": [
+    {{
+      "id": "G-001",
+      "title": "Automated Deployment",
+      "description": "Ensure the system can be deployed autonomously",
+      "success_criteria": "Deployments happen within 5 minutes without human intervention",
+      "verification_method": "Check CI/CD logs"
+    }}
+  ],
+  "stories": [
+    {{
+      "id": "US-001",
+      "title": "Docker Development Environment",
+      "description": "As a developer, I want a Docker-based development environment so that I can develop locally with hot-reload",
+      "requirement_id": "REQ-001",
+      "goal_id": "G-001",
+      "depends_on": [],
+      "acceptance_criteria": [
+        "Container starts with 'docker compose up'",
+        "Source code changes trigger automatic rebuild"
+      ],
+      "verification_script": "docker compose config && docker compose build",
+      "contract": "",
+      "tasks": [
+        {{
+          "id": "T-US-001-001",
+          "title": "Create development Dockerfile",
+          "description": "Create Dockerfile with development target stage",
+          "depends_on": [],
+          "verification_script": "docker build --target dev ."
+        }},
+        {{
+          "id": "T-US-001-002",
+          "title": "Create docker-compose.yml",
+          "description": "Configure docker-compose with volume mounts",
+          "depends_on": ["T-US-001-001"],
+          "verification_script": "docker compose config"
+        }}
+      ]
+    }}
+  ]
+}}
 
 INTENT DOCUMENT:
 {intent}
 
-Generate the JSON array of stories. Output ONLY valid JSON, no markdown or explanations."""
+Generate the JSON object containing goals and stories. Output ONLY valid JSON, no markdown or explanations."""
 
 
 
@@ -240,14 +252,14 @@ class LLMStoryGenerator:
             # Default to anthropic for unknown models
             return "anthropic"
 
-    def generate(self, intent_content: str) -> list[dict[str, Any]]:
-        """Generate stories from intent document.
+    def generate(self, intent_content: str) -> dict[str, Any]:
+        """Generate goals and stories from intent document.
 
         Args:
             intent_content: Raw content of the intent document
 
         Returns:
-            List of user stories as dictionaries
+            Dictionary containing goals and stories
         """
         prompt = STORY_GENERATION_PROMPT.format(intent=intent_content)
 
@@ -447,36 +459,36 @@ class LLMStoryGenerator:
 
     def review(
         self,
-        stories: list[dict[str, Any]],
+        result_data: dict[str, Any],
         intent_content: str,
         reviewer_model: str,
         max_iterations: int = 3,
-    ) -> list[dict[str, Any]]:
+    ) -> dict[str, Any]:
         """Review and fix stories in a loop until approved.
 
         Args:
-            stories: Generated stories to review
+            result_data: Generated JSON object (with goals and stories)
             intent_content: Original intent document
             reviewer_model: Model to use for review
             max_iterations: Maximum review-fix cycles
 
         Returns:
-            Approved stories
+            Approved JSON object
         """
-        current_stories = stories
+        current_data = result_data
 
         for iteration in range(max_iterations):
             print(f"  Review iteration {iteration + 1}/{max_iterations}")
 
             # Get review from reviewer model
             review_result = self._get_review(
-                current_stories, intent_content, reviewer_model
+                current_data.get("stories", []), intent_content, reviewer_model
             )
 
             if review_result.get("approved", False):
                 assessment = review_result.get("assessment", "Stories are implementation-ready")
                 print(f"  ✓ Approved: {assessment}")
-                return current_stories
+                return current_data
 
             # Stories rejected - show detailed feedback
             print()
@@ -511,12 +523,14 @@ class LLMStoryGenerator:
 
             # Fix stories using executor model
             print("  Fixing stories...")
-            current_stories = self._fix_stories(
-                current_stories, intent_content, review_result
+            fixed_stories = self._fix_stories(
+                current_data.get("stories", []), intent_content, review_result
             )
+            # Retain original goals, update stories
+            current_data["stories"] = fixed_stories
 
         print(f"  ! Max iterations reached, returning best effort")
-        return current_stories
+        return current_data
 
     def _call_llm(self, prompt: str, model: str | None = None) -> str:
         """Call LLM using CLI or API based on configuration.
@@ -577,7 +591,8 @@ class LLMStoryGenerator:
         )
 
         response = self._call_llm(prompt)
-        return self._parse_response(response)
+        parsed = self._parse_response(response)
+        return parsed.get("stories", [])
 
     def _extract_json_from_response(self, response: str, expect_array: bool = False) -> Any:
         """Extract JSON data from agent response.
@@ -653,24 +668,23 @@ class LLMStoryGenerator:
                 "assessment": "Failed to parse review response",
             }
 
-    def _parse_response(self, response: str) -> list[dict[str, Any]]:
+    def _parse_response(self, response: str) -> dict[str, Any]:
         """Parse JSON response from LLM."""
         try:
-            result = self._extract_json_from_response(response, expect_array=True)
+            result = self._extract_json_from_response(response, expect_array=False)
         except ValueError as e:
             raise ValueError(f"Failed to parse LLM response as JSON: {e}")
 
-        # Handle if we got an object instead of array
-        if isinstance(result, dict):
-            # Wrap single story in array
-            result = [result]
-
         # Validate structure
-        if not isinstance(result, list):
-            raise ValueError(f"Expected list of stories, got {type(result)}")
+        if not isinstance(result, dict) or "stories" not in result:
+            # Maybe the LLM just returned the stories array despite the prompt
+            if isinstance(result, list):
+                result = {"schema_version": "1.1", "goals": [], "stories": result}
+            else:
+                raise ValueError(f"Expected JSON object with 'stories', got {type(result)}")
 
         # Ensure consistent structure
-        for story in result:
+        for story in result.get("stories", []):
             if "acceptance_criteria" not in story:
                 story["acceptance_criteria"] = []
             if "tasks" not in story:

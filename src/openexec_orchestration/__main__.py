@@ -211,14 +211,15 @@ def cmd_generate(args: argparse.Namespace) -> int:
     # Use LLM-based generator for better quality stories
     try:
         generator = LLMStoryGenerator(model=model)
-        print("Generating stories...")
-        stories = generator.generate(intent_content)
-        print(f"Generated {len(stories)} stories")
+        print("Generating stories and goals...")
+        result_data = generator.generate(intent_content)
+        stories_count = len(result_data.get("stories", []))
+        print(f"Generated {stories_count} stories")
 
         # Review step if reviewer is specified
         if reviewer:
             print("Reviewing stories...")
-            stories = generator.review(stories, intent_content, reviewer_model=reviewer)
+            result_data = generator.review(result_data, intent_content, reviewer_model=reviewer)
             print("Review complete")
 
     except ImportError as e:
@@ -228,7 +229,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         parser = IntentParser()
         intent = parser.parse(args.file)
         fallback_generator = StoryGenerator()
-        stories = fallback_generator.generate(intent)
+        result_data = {"schema_version": "1.0", "goals": [], "stories": fallback_generator.generate(intent)}
     except ValueError as e:
         # JSON parsing errors or API key errors
         error_msg = str(e)
@@ -241,7 +242,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         parser = IntentParser()
         intent = parser.parse(args.file)
         fallback_generator = StoryGenerator()
-        stories = fallback_generator.generate(intent)
+        result_data = {"schema_version": "1.0", "goals": [], "stories": fallback_generator.generate(intent)}
     except KeyError as e:
         # This shouldn't happen - indicates a bug in response handling
         import traceback
@@ -252,7 +253,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         parser = IntentParser()
         intent = parser.parse(args.file)
         fallback_generator = StoryGenerator()
-        stories = fallback_generator.generate(intent)
+        result_data = {"schema_version": "1.0", "goals": [], "stories": fallback_generator.generate(intent)}
     except Exception as e:
         import traceback
         print(f"Warning: LLM generation failed ({type(e).__name__}: {e})", file=sys.stderr)
@@ -261,13 +262,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         parser = IntentParser()
         intent = parser.parse(args.file)
         fallback_generator = StoryGenerator()
-        stories = fallback_generator.generate(intent)
-
-    # Wrap stories in versioned object
-    result_data = {
-        "schema_version": "1.0",
-        "stories": stories
-    }
+        result_data = {"schema_version": "1.0", "goals": [], "stories": fallback_generator.generate(intent)}
 
     output = json.dumps(result_data, indent=2)
     if args.output:

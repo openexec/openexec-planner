@@ -24,6 +24,8 @@ CLI_COMMANDS = {
     # Gemini CLI
     "gemini-3.1-pro-preview": "gemini",
     "gemini-3.1-flash-preview": "gemini",
+    # OpenCode CLI
+    "opencode": "opencode",
 }
 
 # Model mapping for API mode

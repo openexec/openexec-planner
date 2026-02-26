@@ -51,6 +51,12 @@ class Goal(BaseModel):
     verification_method: str = ""  # Manual check, Automated test, Metric?
 
 
+class Constraint(BaseModel):
+    """A project constraint or technical limitation."""
+    id: str
+    description: str
+
+
 class Entity(BaseModel):
     """A core business noun and its role."""
     name: str
@@ -91,7 +97,7 @@ class IntentState(BaseModel):
 
     # Constraints & SLOs
     slos: Dict[str, str] = Field(default_factory=dict)
-    constraints: List[str] = Field(default_factory=list)
+    constraints: List[Constraint] = Field(default_factory=list)
 
     # Internal Tracking
     explicit_facts: List[str] = Field(default_factory=list)
@@ -150,6 +156,7 @@ SCHEMA DEFINITION:
 - app_type: "cli", "web", "mobile", "desktop", "api", "library", "plugin", "other", "unknown"
 - platforms: List of "macos", "windows", "linux", "ios", "android", "web", "cross-platform"
 - legacy_repo_path: Required if flow is "refactor"
+- constraints: List of objects with "id" (C-001, etc.) and "description"
 - explicit_facts: List of strings the user explicitly stated.
 - assumptions: List of strings you are assuming but need confirmation on.
 
@@ -295,7 +302,7 @@ class IntentWizard:
         lines.append("## Constraints")
         if self.state.constraints:
             for constraint in self.state.constraints:
-                lines.append(f"- {constraint}")
+                lines.append(f"- {constraint.id}: {constraint.description}")
         else:
             lines.append("- TBD: Operational or technical constraints required")
             

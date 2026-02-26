@@ -106,6 +106,18 @@ class IntentState(BaseModel):
         if not self.problem_statement:
             return False
         
+        # Must have at least one primary goal
+        if not self.primary_goals:
+            return False
+            
+        # Must have at least one constraint
+        if not self.constraints:
+            return False
+            
+        # Must have at least one entity with data source mapping
+        if not self.entities or not any(e.data_source for e in self.entities):
+            return False
+
         # Desktop/Mobile requires explicit platforms
         if self.app_type in [AppType.DESKTOP, AppType.MOBILE] and not self.platforms:
             return False
@@ -240,33 +252,40 @@ class IntentWizard:
         lines.append("## Goals")
         if self.state.problem_statement:
             lines.append(f"- {self.state.problem_statement}")
-        for goal in self.state.primary_goals:
-            lines.append(f"### {goal.id}: {goal.description}")
-            lines.append(f"- Success Criteria: {goal.success_criteria}")
-            lines.append(f"- Verification: {goal.verification_method}")
-        lines.append(f"- Global Success Metric: {self.state.success_metric}")
+        
+        if self.state.primary_goals:
+            for goal in self.state.primary_goals:
+                lines.append(f"### {goal.id}: {goal.description}")
+                lines.append(f"- Success Criteria: {goal.success_criteria}")
+                lines.append(f"- Verification: {goal.verification_method}")
+        else:
+            lines.append("- TBD: High-level goal definition required")
+
+        lines.append(f"- Global Success Metric: {self.state.success_metric or 'TBD'}")
         lines.append("")
         lines.append("## Requirements")
         lines.append(f"### REQ-001: Core Architecture")
-        lines.append(f"- Shape: {self.state.app_type.value}")
+        lines.append(f"- Shape: {self.state.app_type.value if self.state.app_type else 'TBD'}")
         if self.state.platforms:
             lines.append(f"- Platforms: {', '.join([p.value for p in self.state.platforms])}")
+        else:
+            lines.append("- Platforms: TBD")
         
         lines.append("")
         lines.append("### REQ-002: Data Source Mapping")
         if self.state.entities:
             for entity in self.state.entities:
-                lines.append(f"- {entity.name}: {entity.description}")
+                lines.append(f"- {entity.name}: {entity.description or 'TBD'}")
                 if entity.data_source:
                     lines.append(f"  - Source of Truth: {entity.data_source}")
         else:
-            lines.append("- No core entities defined yet.")
+            lines.append("- TBD: Core entities and data ownership required")
 
         if self.state.flow == ProjectFlow.REFACTOR:
             lines.append("")
             lines.append("## Legacy Context")
-            lines.append(f"- Repo: {self.state.legacy_repo_path}")
-            lines.append(f"- Scope: {self.state.refactor_scope}")
+            lines.append(f"- Repo: {self.state.legacy_repo_path or 'TBD'}")
+            lines.append(f"- Scope: {self.state.refactor_scope or 'TBD'}")
             if self.state.dependencies:
                 lines.append("- Dependencies:")
                 for dep in self.state.dependencies:
@@ -274,7 +293,10 @@ class IntentWizard:
 
         lines.append("")
         lines.append("## Constraints")
-        for constraint in self.state.constraints:
-            lines.append(f"- {constraint}")
+        if self.state.constraints:
+            for constraint in self.state.constraints:
+                lines.append(f"- {constraint}")
+        else:
+            lines.append("- TBD: Operational or technical constraints required")
             
         return "\n".join(lines)

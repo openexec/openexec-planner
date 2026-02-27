@@ -80,25 +80,24 @@ class Scheduler:
                     deps = task_data.get("depends_on", [])
                     
                     # Inheritance logic:
-                    # 1. If it's the first task and the story has dependencies, 
-                    #    it should depend on the last tasks of those stories.
-                    if i == 1 and story_deps:
+                    # Every task in this story should depend on the last tasks of the dependent stories
+                    if story_deps:
                         for s_dep in story_deps:
                             last_tid = story_last_tasks.get(s_dep)
                             if last_tid and last_tid not in deps:
                                 deps.append(last_tid)
                                 
-                    # 2. Sequential execution within story (if not explicitly set)
-                    # if i > 1 and not deps and prev_task_id:
-                    #     deps.append(prev_task_id)
+                    # Also sequential execution within story if i > 1
+                    if i > 1 and prev_task_id and prev_task_id not in deps:
+                        deps.append(prev_task_id)
                 else:
                     # Fallback for simple string tasks
                     task_id = f"{story_id}-T{i}"
                     task_title_raw = task_data
                     deps = [prev_task_id] if prev_task_id else []
                     
-                    # Inherit story-level deps for the first task
-                    if i == 1 and story_deps:
+                    # Inherit story-level deps
+                    if story_deps:
                         for s_dep in story_deps:
                             last_tid = story_last_tasks.get(s_dep)
                             if last_tid and last_tid not in deps:

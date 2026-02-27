@@ -68,6 +68,8 @@ REVIEW THE STORIES AGAINST THESE CRITERIA:
 
 7. **Specific Tasks**: Tasks must be technical and actionable.
 
+8. **Test Coverage**: Implementation stories MUST include tasks specifically for comprehensive unit testing (>90% coverage) and, where applicable, End-to-End (E2E) testing. Reject plans that lack rigorous verification steps.
+
 ORIGINAL INTENT:
 {intent}
 
@@ -169,8 +171,9 @@ RULES:
    - Sequential tasks within a story must also include "depends_on".
 6. VERIFIABILITY: Generate an executable 'verification_script' (a shell command, e.g. 'curl -f http://localhost:3000/api/health' or 'npm test') that automatically verifies the acceptance criteria.
 7. CONTRACTS: Generate a 'contract' field for stories that provide an API or interface, allowing parallel dependent stories to use it as a mock source.
-8. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
-9. Avoid redundancy - do not create multiple stories for the same functionality.
+8. TESTING: Ensure that implementation stories include tasks specifically for authoring unit tests (>90% code coverage) and, where appropriate for the shape, End-to-End (E2E) tests.
+9. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
+10. Avoid redundancy - do not create multiple stories for the same functionality.
 
 OUTPUT FORMAT (JSON object):
 {{

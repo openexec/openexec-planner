@@ -33,8 +33,13 @@ class Scheduler:
         # Extract tasks from stories
         if isinstance(data, list):
             tasks = self._extract_tasks_from_stories(data)
-        elif isinstance(data, dict) and "goal" in data:
-            tasks = self._extract_tasks_from_tree(data)
+        elif isinstance(data, dict):
+            if "stories" in data:
+                tasks = self._extract_tasks_from_stories(data["stories"])
+            elif "goal" in data:
+                tasks = self._extract_tasks_from_tree(data)
+            else:
+                tasks = []
         else:
             tasks = []
 
@@ -51,29 +56,63 @@ class Scheduler:
     ) -> list[Task]:
         """Extract tasks from story list."""
         tasks = []
-        task_num = 1
+        
+        # Track last task of each story for dependency inheritance
+        story_last_tasks = {}
 
         for story in stories:
-            story_id = story.get("id", f"US-{task_num:03d}")
+            story_id = story.get("id", "US-???")
             story_title = story.get("title", "Untitled")
+            
+            # Story-level dependencies (IDs of other stories)
+            story_deps = story.get("depends_on", [])
 
             # Create tasks from story tasks
             story_tasks = story.get("tasks", [])
             prev_task_id = None
 
-            for i, task_title in enumerate(story_tasks, 1):
-                task_id = f"{story_id}-T{i}"
-                deps = [prev_task_id] if prev_task_id else []
+            for i, task_data in enumerate(story_tasks, 1):
+                # Handle both structured (dict) and simple (string) tasks
+                if isinstance(task_data, dict):
+                    task_id = task_data.get("id", f"{story_id}-T{i}")
+                    task_title_raw = task_data.get("title", f"Task {i}")
+                    # Use provided dependencies
+                    deps = task_data.get("depends_on", [])
+                    
+                    # Inheritance logic:
+                    # 1. If it's the first task and the story has dependencies, 
+                    #    it should depend on the last tasks of those stories.
+                    if i == 1 and story_deps:
+                        for s_dep in story_deps:
+                            last_tid = story_last_tasks.get(s_dep)
+                            if last_tid and last_tid not in deps:
+                                deps.append(last_tid)
+                                
+                    # 2. Sequential execution within story (if not explicitly set)
+                    # if i > 1 and not deps and prev_task_id:
+                    #     deps.append(prev_task_id)
+                else:
+                    # Fallback for simple string tasks
+                    task_id = f"{story_id}-T{i}"
+                    task_title_raw = task_data
+                    deps = [prev_task_id] if prev_task_id else []
+                    
+                    # Inherit story-level deps for the first task
+                    if i == 1 and story_deps:
+                        for s_dep in story_deps:
+                            last_tid = story_last_tasks.get(s_dep)
+                            if last_tid and last_tid not in deps:
+                                deps.append(last_tid)
 
                 task = Task(
                     id=task_id,
-                    title=f"{story_title}: {task_title}",
+                    title=f"{story_title}: {task_title_raw}",
                     dependencies=deps,
-                    estimated_hours=self._estimate_hours(task_title),
+                    estimated_hours=self._estimate_hours(task_title_raw),
                 )
                 tasks.append(task)
                 prev_task_id = task_id
-                task_num += 1
+                story_last_tasks[story_id] = task_id
 
         return tasks
 
@@ -173,6 +212,14 @@ class Scheduler:
         # Build output
         total_hours = sum(t.estimated_hours for t in tasks)
         phase_output = []
+        flat_tasks = []
+
+        # Track all tasks for the flat list
+        for t in tasks:
+            d = t.to_dict()
+            d["status"] = "pending"
+            d["kind"] = "task"
+            flat_tasks.append(d)
 
         for i, phase_tasks in enumerate(phases, 1):
             phase_hours = sum(t.estimated_hours for t in phase_tasks)
@@ -188,4 +235,5 @@ class Scheduler:
             "total_hours": total_hours,
             "task_count": len(tasks),
             "phase_count": len(phases),
+            "tasks": flat_tasks, # Flat list for execution engine, now correctly ordered
         }

@@ -57,6 +57,13 @@ class Constraint(BaseModel):
     description: str
 
 
+class Dependency(BaseModel):
+    """An external dependency or infrastructure component."""
+    name: str
+    description: str = ""
+    type: str = ""  # e.g., database, api, engine
+
+
 class Entity(BaseModel):
     """A core business noun and its role."""
     name: str
@@ -93,7 +100,7 @@ class IntentState(BaseModel):
     # Refactoring & Legacy
     legacy_repo_path: Optional[str] = None
     refactor_scope: Optional[str] = None  # e.g., Component, System
-    dependencies: List[str] = Field(default_factory=list)  # e.g., Supabase, Redis
+    dependencies: List[Dependency] = Field(default_factory=list)  # e.g., Supabase, Redis
 
     # Constraints & SLOs
     slos: Dict[str, str] = Field(default_factory=dict)
@@ -157,6 +164,7 @@ SCHEMA DEFINITION:
 - platforms: List of "macos", "windows", "linux", "ios", "android", "web", "cross-platform"
 - legacy_repo_path: Required if flow is "refactor"
 - constraints: List of objects with "id" (C-001, etc.) and "description"
+- dependencies: List of objects with "name", "description", and "type" (e.g., {"name": "Supabase", "type": "database"})
 - explicit_facts: List of strings the user explicitly stated.
 - assumptions: List of strings you are assuming but need confirmation on.
 
@@ -296,7 +304,7 @@ class IntentWizard:
             if self.state.dependencies:
                 lines.append("- Dependencies:")
                 for dep in self.state.dependencies:
-                    lines.append(f"  - {dep}")
+                    lines.append(f"  - {dep.name}: {dep.description or dep.type or 'No details'}")
 
         lines.append("")
         lines.append("## Constraints")

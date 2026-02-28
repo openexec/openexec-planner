@@ -174,8 +174,9 @@ RULES:
 8. TESTING: Ensure that implementation stories include tasks specifically for authoring unit tests (>90% code coverage) and, where appropriate for the shape, End-to-End (E2E) tests.
 9. DOCKER VALIDATION: For projects involving Docker/Containerization, a mandatory task MUST be included to verify that all containers start successfully and pass their health checks.
 10. SKELETON SEEDING: For visual workflow or UI platforms (n8n, Langflow, etc.), the initial infrastructure stories MUST include a task to automatically import or seed a 'Starter Skeleton' workflow/template so the system is not empty upon first launch.
-11. GOAL VALIDATION: Every project MUST conclude with a dedicated 'Goal Validation' story. This story MUST use End-to-End (E2E) testing (e.g., Playwright for web, API integration tests for services) to empirically verify that the primary goals defined in the intent are fully satisfied.
-12. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
+11. GOAL VALIDATION: Every project MUST conclude with a dedicated 'Goal Validation' story using E2E testing (e.g., Playwright) to verify primary goals.
+12. MATURITY ENGINE: Implementation must support declarative progression rules in the DSL, node-level caching via input fingerprinting, and run-id based artifact organization.
+13. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
 10. Avoid redundancy - do not create multiple stories for the same functionality.
 
 OUTPUT FORMAT (JSON object):

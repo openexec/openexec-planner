@@ -176,7 +176,8 @@ RULES:
 10. SKELETON SEEDING: For visual workflow or UI platforms (n8n, Langflow, etc.), the initial infrastructure stories MUST include a task to automatically import or seed a 'Starter Skeleton' workflow/template so the system is not empty upon first launch.
 11. GOAL VALIDATION: Every project MUST conclude with a dedicated 'Goal Validation' story using E2E testing (e.g., Playwright) to verify primary goals.
 12. MATURITY ENGINE: Implementation must support declarative progression rules in the DSL, node-level caching via input fingerprinting, and run-id based artifact organization.
-13. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
+13. GRANULARITY: Implementation tasks MUST be extremely granular (e.g., one function, one schema, one class). Every 'Implement' task MUST be followed by a dedicated 'Test' task for that specific unit. Aim for 80-120 tasks for comprehensive projects.
+14. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
 10. Avoid redundancy - do not create multiple stories for the same functionality.
 
 OUTPUT FORMAT (JSON object):

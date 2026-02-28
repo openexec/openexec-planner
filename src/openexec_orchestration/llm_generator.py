@@ -70,6 +70,8 @@ REVIEW THE STORIES AGAINST THESE CRITERIA:
 
 8. **Test Coverage**: Implementation stories MUST include tasks specifically for comprehensive unit testing (>90% coverage) and, where applicable, End-to-End (E2E) testing. Reject plans that lack rigorous verification steps.
 
+9. **ISO-Compliant Workflow**: Confirm the plan supports Story-Level validation. Every implementation story must have a final task or acceptance criterion that summarizes the verification evidence for the entire feature set.
+
 ORIGINAL INTENT:
 {intent}
 
@@ -176,8 +178,13 @@ RULES:
 10. SKELETON SEEDING: For visual workflow or UI platforms (n8n, Langflow, etc.), the initial infrastructure stories MUST include a task to automatically import or seed a 'Starter Skeleton' workflow/template so the system is not empty upon first launch.
 11. GOAL VALIDATION: Every project MUST conclude with a dedicated 'Goal Validation' story using E2E testing (e.g., Playwright) to verify primary goals.
 12. MATURITY ENGINE: Implementation must support declarative progression rules in the DSL, node-level caching via input fingerprinting, and run-id based artifact organization.
-13. GRANULARITY: Implementation tasks MUST be extremely granular (e.g., one function, one schema, one class). Every 'Implement' task MUST be followed by a dedicated 'Test' task for that specific unit. Aim for 80-120 tasks for comprehensive projects.
-14. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
+13. GRANULARITY & FAT TASKS: Group tightly coupled logic (e.g., state class + its registry + init file) into single "Chassis" tasks to reduce round-trips. However, keep feature implementations granular.
+14. TECHNICAL STRATEGY: Every task MUST include a "technical_strategy" field. This is a 2-sentence blueprint for the implementation agent, including required imports, specific class types (e.g., Pydantic vs Dict), and common senior-level pitfalls to avoid (e.g., 'Import Any to avoid NameError', 'Use backslashes for multi-line Docker RUN').
+15. AUTONOMOUS INNER-LOOP: Mandate that the implementation agent remains in an autonomous "test-fail-fix" cycle. It must not report "completed" until its local verification script passes.
+16. ISO-COMPLIANT REVIEWS: Implementation follows a two-tier review protocol:
+    - Task-Tier (Verification): Autonomous verification via scripts (Evidence is logged in audit.db).
+    - Story-Tier (Validation): Once all tasks in a story are verified, a final 'Validation Review' MUST be performed to ensure the integrated feature satisfies the acceptance criteria and Goal ID.
+17. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
 10. Avoid redundancy - do not create multiple stories for the same functionality.
 
 OUTPUT FORMAT (JSON object):
@@ -211,6 +218,7 @@ OUTPUT FORMAT (JSON object):
           "id": "T-US-001-001",
           "title": "Create development Dockerfile",
           "description": "Create Dockerfile with development target stage",
+          "technical_strategy": "Use python:3.11-slim as base. Separate pip install from code COPY to leverage cache. Use backslashes for multi-line RUN commands.",
           "depends_on": [],
           "verification_script": "docker build --target dev ."
         }},
@@ -218,6 +226,7 @@ OUTPUT FORMAT (JSON object):
           "id": "T-US-001-002",
           "title": "Create docker-compose.yml",
           "description": "Configure docker-compose with volume mounts",
+          "technical_strategy": "Define 'backend' service. Map host root to /app. Set env MAGPIE_ENV=dev.",
           "depends_on": ["T-US-001-001"],
           "verification_script": "docker compose config"
         }}

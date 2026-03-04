@@ -83,19 +83,24 @@ openexec-planner wizard
 ```
 *The wizard will chat with you, save its progress, and finally render an `INTENT.md` file.*
 
-### 3. Generate Implementation Plan
+### 3. Generate User Stories
 Transform your `INTENT.md` into structured user stories and technical tasks using an LLM.
 
 ```bash
 openexec-planner generate INTENT.md -o .openexec/stories.json
 ```
+*This creates high-level stories, but they are not yet ready for the execution engine.*
 
-### 4. Optimize the Schedule
-Take the generated stories and calculate an optimized execution schedule. This performs a **topological sort** to handle dependencies and groups tasks into parallel phases.
+### 4. Create Execution DAG (Schedule)
+Take the generated stories and flatten them into a Directed Acyclic Graph (DAG) of tasks. This step is **required** before running the Go execution engine.
 
 ```bash
 openexec-planner schedule .openexec/stories.json -o .openexec/tasks.json
 ```
+*The `schedule` command handles:*
+- **Topological Sorting:** Ensures prerequisites are built before the features that depend on them.
+- **Parallelization:** Groups tasks into phases that can be executed simultaneously.
+- **Verification Mapping:** Links acceptance criteria to autonomous test scripts.
 
 ---
 
@@ -103,11 +108,11 @@ openexec-planner schedule .openexec/stories.json -o .openexec/tasks.json
 
 OpenExec is designed as a **Brain (Planner)** and a **Body (Executor)**.
 
-1.  **Plan (Python):** Use `openexec-planner` (this package) to build the `tasks.json` roadmap.
+1.  **Plan (Python):** Use `openexec-planner` (this package) to build the `tasks.json` roadmap (Steps 1-4).
 2.  **Execute (Go):** Use the [OpenExec Engine](https://github.com/openexec/openexec) to run the tasks.
 
 ```bash
-# Once tasks.json is generated in step 4:
+# Once .openexec/tasks.json is generated in step 4:
 openexec start --ui
 openexec run
 ```

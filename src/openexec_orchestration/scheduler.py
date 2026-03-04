@@ -36,6 +36,20 @@ class Scheduler:
         elif isinstance(data, dict):
             if "stories" in data:
                 tasks = self._extract_tasks_from_stories(data["stories"])
+            elif "tasks" in data:
+                # If they are already Task objects or dicts representing tasks
+                raw_tasks = data["tasks"]
+                tasks = []
+                for t in raw_tasks:
+                    if isinstance(t, Task):
+                        tasks.append(t)
+                    elif isinstance(t, dict):
+                        tasks.append(Task(
+                            id=t.get("id", ""),
+                            title=t.get("title", ""),
+                            depends_on=t.get("depends_on", []),
+                            estimated_hours=t.get("estimated_hours", 4.0)
+                        ))
             elif "goal" in data:
                 tasks = self._extract_tasks_from_tree(data)
             else:

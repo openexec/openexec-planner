@@ -12,6 +12,13 @@ class GoalNode:
     children: list["GoalNode"] = field(default_factory=list)
     task_id: str | None = None
 
+    def __post_init__(self):
+        """Handle non-string goal inputs."""
+        if isinstance(self.goal, dict):
+            self.goal = self.goal.get("title") or self.goal.get("goal") or str(self.goal)
+        elif not isinstance(self.goal, str):
+            self.goal = str(self.goal)
+
     def print(self, indent: int = 0) -> None:
         """Print goal tree."""
         prefix = "  " * indent
@@ -70,15 +77,17 @@ class GoalTreeBuilder:
         root = GoalNode(goal=intent.get("title", "Project"))
 
         # Add goals as first-level children
-        for i, goal in enumerate(intent.get("goals", []), 1):
-            goal_node = GoalNode(goal=goal)
+        for i, goal_raw in enumerate(intent.get("goals", []), 1):
+            goal_node = GoalNode(goal=goal_raw)
+            goal_text = goal_node.goal
 
             # Find related requirements as sub-goals
-            goal_words = set(goal.lower().split())
-            for req in intent.get("requirements", []):
-                req_words = set(req.lower().split())
+            goal_words = set(goal_text.lower().split())
+            for req_raw in intent.get("requirements", []):
+                req_text = req_raw if isinstance(req_raw, str) else req_raw.get("title", str(req_raw))
+                req_words = set(req_text.lower().split())
                 if len(goal_words & req_words) >= 2:
-                    req_node = GoalNode(goal=req)
+                    req_node = GoalNode(goal=req_raw)
                     goal_node.children.append(req_node)
 
             # Add task placeholder if no children
@@ -90,10 +99,11 @@ class GoalTreeBuilder:
 
         # Add any orphan requirements as separate goals
         covered = {c.goal.lower() for g in root.children for c in g.children}
-        for i, req in enumerate(intent.get("requirements", []), 100):
-            if req.lower() not in covered:
+        for i, req_raw in enumerate(intent.get("requirements", []), 100):
+            req_text = req_raw if isinstance(req_raw, str) else req_raw.get("title", str(req_raw))
+            if req_text.lower() not in covered:
                 req_node = GoalNode(
-                    goal=req,
+                    goal=req_raw,
                     children=[GoalNode(goal="", task_id=f"TASK-{i:03d}")],
                 )
                 root.children.append(req_node)

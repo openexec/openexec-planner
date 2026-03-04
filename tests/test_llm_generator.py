@@ -3,7 +3,7 @@
 import json
 from unittest.mock import patch, MagicMock
 import pytest
-from openexec_orchestration.llm_generator import LLMStoryGenerator
+from openexec_planner.llm_generator import LLMStoryGenerator
 
 
 class TestLLMStoryGenerator:
@@ -122,8 +122,8 @@ Let me know if you need anything else.
         assert generator._detect_provider("gemini-3.1-pro-preview") == "google"
         assert generator._detect_provider("unknown") == "anthropic" # Default
 
-    @patch("openexec_orchestration.llm_generator.LLMStoryGenerator._get_review")
-    @patch("openexec_orchestration.llm_generator.LLMStoryGenerator._fix_stories")
+    @patch("openexec_planner.llm_generator.LLMStoryGenerator._get_review")
+    @patch("openexec_planner.llm_generator.LLMStoryGenerator._fix_stories")
     def test_review_loop_approval(self, mock_fix, mock_get_review):
         """Test the review loop with immediate approval."""
         generator = LLMStoryGenerator()
@@ -136,8 +136,8 @@ Let me know if you need anything else.
         mock_get_review.assert_called_once()
         mock_fix.assert_not_called()
 
-    @patch("openexec_orchestration.llm_generator.LLMStoryGenerator._get_review")
-    @patch("openexec_orchestration.llm_generator.LLMStoryGenerator._fix_stories")
+    @patch("openexec_planner.llm_generator.LLMStoryGenerator._get_review")
+    @patch("openexec_planner.llm_generator.LLMStoryGenerator._fix_stories")
     def test_review_loop_fix(self, mock_fix, mock_get_review):
         """Test the review loop with one rejection and then approval (implicit)."""
         generator = LLMStoryGenerator()
@@ -156,8 +156,8 @@ Let me know if you need anything else.
         assert mock_get_review.call_count == 2
         mock_fix.assert_called_once()
 
-    @patch("openexec_orchestration.llm_generator.LLMStoryGenerator._get_review")
-    @patch("openexec_orchestration.llm_generator.LLMStoryGenerator._fix_stories")
+    @patch("openexec_planner.llm_generator.LLMStoryGenerator._get_review")
+    @patch("openexec_planner.llm_generator.LLMStoryGenerator._fix_stories")
     def test_review_loop_with_feedback_output(self, mock_fix, mock_get_review, capsys):
         """Test the review loop with complex rejection feedback to trigger print paths."""
         generator = LLMStoryGenerator()

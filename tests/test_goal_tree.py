@@ -1,7 +1,7 @@
 """Tests for goal tree building."""
 
 import pytest
-from openexec_orchestration.goal_tree import GoalTreeBuilder
+from openexec_planner.goal_tree import GoalTreeBuilder
 
 
 class TestGoalTreeBuilder:
@@ -59,7 +59,7 @@ class TestGoalTreeBuilder:
         
     def test_goal_node_dict_input(self):
         """Test GoalNode handling dictionary input for title."""
-        from openexec_orchestration.goal_tree import GoalNode
+        from openexec_planner.goal_tree import GoalNode
         node = GoalNode(goal={"title": "Dict Goal"})
         assert node.goal == "Dict Goal"
         

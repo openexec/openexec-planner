@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 import pytest
-from openexec_orchestration.utils import safe_resolve_path
+from openexec_planner.utils import safe_resolve_path
 
 
 def test_safe_resolve_path_relative():

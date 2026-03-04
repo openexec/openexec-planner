@@ -3,7 +3,7 @@
 import json
 from unittest.mock import patch, MagicMock
 import pytest
-from openexec_orchestration.wizard import (
+from openexec_planner.wizard import (
     IntentWizard, 
     IntentState, 
     ProjectFlow, 
@@ -18,7 +18,7 @@ from openexec_orchestration.wizard import (
 class TestIntentWizard:
     """Tests for IntentWizard."""
 
-    @patch("openexec_orchestration.llm_generator.LLMStoryGenerator")
+    @patch("openexec_planner.llm_generator.LLMStoryGenerator")
     def test_process_message(self, mock_gen_class):
         """Test processing a message through the wizard with mock LLM."""
         # Setup mock

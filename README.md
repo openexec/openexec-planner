@@ -1,9 +1,9 @@
 <p align="center">
-  <h1 align="center">OpenExec Orchestration</h1>
+  <h1 align="center">OpenExec Planner</h1>
 </p>
 
 <p align="center">
-  <strong>AI Planning Engine — From Intent to Executable Tasks</strong>
+  <strong>AI Project Planning Engine — From Intent to Executable Task DAGs</strong>
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
 
 ---
 
-The **OpenExec Orchestration** module transforms high-level project intents (PRDs, specs, requirements) into structured, executable task hierarchies using AI-powered decomposition and goal tree analysis.
+The **OpenExec Planner** module transforms high-level project intents (PRDs, specs, requirements) into structured, executable task hierarchies using AI-powered decomposition and goal tree analysis.
 
 ## Features
 
@@ -45,8 +45,8 @@ The **OpenExec Orchestration** module transforms high-level project intents (PRD
 ## Installation
 
 ```bash
-git clone https://github.com/openexec/openexec-orchestration.git
-cd openexec-orchestration
+git clone https://github.com/openexec/openexec-planner.git
+cd openexec-planner
 pip install -e .
 ```
 
@@ -61,7 +61,7 @@ By default, the orchestration engine uses external CLI tools to call LLMs. Ensur
 
 To use direct API calls instead, install the optional dependencies:
 ```bash
-pip install "openexec-orchestration[llm]"
+pip install "openexec-planner[llm]"
 ```
 
 ## Usage
@@ -73,7 +73,7 @@ The orchestration engine follows a logical project lifecycle:
 Start a guided interview to define your project shape, platform, and contracts. This is the recommended first step for any new project or refactor.
 
 ```bash
-openexec-orchestration wizard --message "I want to build a new mobile app for gym tracking"
+openexec-planner wizard --message "I want to build a new mobile app for gym tracking"
 ```
 
 The wizard will track state and ask follow-up questions until the intent is "Ready", then render an `INTENT.md` file.
@@ -83,7 +83,7 @@ The wizard will track state and ask follow-up questions until the intent is "Rea
 Once you have an `INTENT.md` (either from the wizard or manual), transform it into structured user stories and tasks.
 
 ```bash
-openexec-orchestration generate INTENT.md -o .openexec/stories.json
+openexec-planner generate INTENT.md -o .openexec/stories.json
 ```
 
 ### 3. Analyze Architecture (Build Tree)
@@ -91,7 +91,7 @@ openexec-orchestration generate INTENT.md -o .openexec/stories.json
 Decompose the goals into a hierarchical tree to visualize the project structure.
 
 ```bash
-openexec-orchestration build-tree INTENT.md -o .openexec/goal_tree.json
+openexec-planner build-tree INTENT.md -o .openexec/goal_tree.json
 ```
 
 ### 4. Order Execution (Schedule)
@@ -99,7 +99,7 @@ openexec-orchestration build-tree INTENT.md -o .openexec/goal_tree.json
 Generate an optimized execution schedule based on task dependencies.
 
 ```bash
-openexec-orchestration schedule .openexec/stories.json -o .openexec/schedule.json
+openexec-planner schedule .openexec/stories.json -o .openexec/schedule.json
 ```
 
 ## Configuration
@@ -181,9 +181,9 @@ planning:
 ## Project Structure
 
 ```
-openexec-orchestration/
+openexec-planner/
 ├── src/
-│   └── openexec_orchestration/
+│   └── openexec_planner/
 │       ├── __init__.py
 │       ├── parser.py           # Intent parsing
 │       ├── generator.py        # Story generation

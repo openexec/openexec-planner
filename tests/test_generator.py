@@ -1,7 +1,7 @@
 """Tests for rule-based story generator."""
 
 import pytest
-from openexec_orchestration.generator import StoryGenerator
+from openexec_planner.generator import StoryGenerator
 
 
 class TestStoryGenerator:

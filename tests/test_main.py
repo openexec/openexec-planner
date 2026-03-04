@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
-from openexec_orchestration.__main__ import main
+from openexec_planner.__main__ import main
 
 
 class TestCLI:
@@ -12,18 +12,18 @@ class TestCLI:
 
     def test_version_command(self, capsys):
         """Test the version command."""
-        with patch("sys.argv", ["openexec-orchestration", "version"]):
+        with patch("sys.argv", ["openexec-planner", "version"]):
             result = main()
             assert result == 0
             captured = capsys.readouterr()
-            assert "openexec-orchestration" in captured.out
+            assert "openexec-planner" in captured.out
 
     def test_parse_command(self, tmp_path, capsys):
         """Test the parse command."""
         intent_file = tmp_path / "INTENT.md"
         intent_file.write_text("# My Project\n\n## Goals\n- Goal 1")
         
-        with patch("sys.argv", ["openexec-orchestration", "parse", str(intent_file)]):
+        with patch("sys.argv", ["openexec-planner", "parse", str(intent_file)]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 result = main()
                 assert result == 0
@@ -31,7 +31,7 @@ class TestCLI:
                 assert "Title: My Project" in captured.out
                 assert "Goal 1" in captured.out
 
-    @patch("openexec_orchestration.llm_generator.LLMStoryGenerator")
+    @patch("openexec_planner.llm_generator.LLMStoryGenerator")
     def test_generate_command(self, mock_gen_class, tmp_path, capsys):
         """Test the generate command."""
         intent_file = tmp_path / "INTENT.md"
@@ -42,7 +42,7 @@ class TestCLI:
         mock_gen_class.return_value = mock_gen
         mock_gen.generate.return_value = {"stories": []}
         
-        with patch("sys.argv", ["openexec-orchestration", "generate", str(intent_file), "-o", str(output_file)]):
+        with patch("sys.argv", ["openexec-planner", "generate", str(intent_file), "-o", str(output_file)]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 # Mock shutil.which to bypass CLI check
                 with patch("shutil.which", return_value="/usr/bin/claude"):
@@ -57,13 +57,13 @@ class TestCLI:
         stories_file = tmp_path / "stories.json"
         stories_file.write_text(json.dumps({"stories": []}))
         
-        with patch("sys.argv", ["openexec-orchestration", "schedule", str(stories_file)]):
+        with patch("sys.argv", ["openexec-planner", "schedule", str(stories_file)]):
             result = main()
             assert result == 0
             captured = capsys.readouterr()
             assert "tasks" in captured.out
 
-    @patch("openexec_orchestration.wizard.IntentWizard")
+    @patch("openexec_planner.wizard.IntentWizard")
     def test_wizard_command(self, mock_wizard_class, capsys):
         """Test the wizard command (single turn)."""
         mock_wizard = MagicMock()
@@ -75,21 +75,21 @@ class TestCLI:
         
         mock_wizard.process_message.return_value = mock_resp
         
-        with patch("sys.argv", ["openexec-orchestration", "wizard", "-m", "Hello"]):
+        with patch("sys.argv", ["openexec-planner", "wizard", "-m", "Hello"]):
             result = main()
             assert result == 0
             captured = capsys.readouterr()
             assert "Question 1" in captured.out
             mock_wizard.process_message.assert_called_once_with("Hello")
 
-    @patch("openexec_orchestration.wizard.IntentWizard")
+    @patch("openexec_planner.wizard.IntentWizard")
     def test_wizard_render(self, mock_wizard_class, capsys):
         """Test the wizard command with --render."""
         mock_wizard = MagicMock()
         mock_wizard_class.return_value = mock_wizard
         mock_wizard.render_intent_md.return_value = "# Rendered"
         
-        with patch("sys.argv", ["openexec-orchestration", "wizard", "--render"]):
+        with patch("sys.argv", ["openexec-planner", "wizard", "--render"]):
             result = main()
             assert result == 0
             captured = capsys.readouterr()
@@ -101,13 +101,13 @@ class TestCLI:
         state_data = {"project_name": "Loaded Project"}
         state_file.write_text(json.dumps(state_data))
         
-        with patch("openexec_orchestration.wizard.IntentWizard") as mock_wizard_class:
+        with patch("openexec_planner.wizard.IntentWizard") as mock_wizard_class:
             mock_wizard = MagicMock()
             mock_wizard_class.return_value = mock_wizard
             # Mocking process_message to not crash
             mock_wizard.process_message.return_value = MagicMock()
             
-            with patch("sys.argv", ["openexec-orchestration", "wizard", "--state-file", str(state_file), "-m", "msg"]):
+            with patch("sys.argv", ["openexec-planner", "wizard", "--state-file", str(state_file), "-m", "msg"]):
                 main()
                 # Should have loaded the state
                 assert mock_wizard.state.project_name == "Loaded Project"
@@ -121,14 +121,14 @@ class TestCLI:
         intent_file.write_text("# Title")
         output_file = tmp_path / "tree.json"
         
-        with patch("sys.argv", ["openexec-orchestration", "build-tree", str(intent_file), "-o", str(output_file)]):
+        with patch("sys.argv", ["openexec-planner", "build-tree", str(intent_file), "-o", str(output_file)]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 main()
                 assert output_file.exists()
                 assert "goal" in output_file.read_text()
 
 
-    @patch("openexec_orchestration.__main__.LLMStoryGenerator")
+    @patch("openexec_planner.__main__.LLMStoryGenerator")
     def test_generate_with_reviewer(self, mock_gen_class, tmp_path):
         """Test generate command with a reviewer model."""
         intent_file = tmp_path / "INTENT.md"
@@ -139,7 +139,7 @@ class TestCLI:
         mock_gen.generate.return_value = {"stories": []}
         mock_gen.review.return_value = {"stories": [], "reviewed": True}
         
-        with patch("sys.argv", ["openexec-orchestration", "generate", str(intent_file), "--reviewer", "opus"]):
+        with patch("sys.argv", ["openexec-planner", "generate", str(intent_file), "--reviewer", "opus"]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 with patch("shutil.which", return_value="/usr/bin/claude"):
                     result = main()
@@ -152,7 +152,7 @@ class TestCLI:
         intent_file = tmp_path / "INTENT.md"
         intent_file.write_text("# Test Project\n\n## Goals\n- Goal 1")
         
-        with patch("sys.argv", ["openexec-orchestration", "build-tree", str(intent_file)]):
+        with patch("sys.argv", ["openexec-planner", "build-tree", str(intent_file)]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 result = main()
                 assert result == 0
@@ -160,7 +160,7 @@ class TestCLI:
                 assert "goal" in captured.out
                 assert "Test Project" in captured.out
 
-    @patch("openexec_orchestration.__main__.LLMStoryGenerator")
+    @patch("openexec_planner.__main__.LLMStoryGenerator")
     def test_generate_error_fallback(self, mock_gen_class, tmp_path, capsys):
         """Test generate command falling back to rules on LLM error."""
         intent_file = tmp_path / "INTENT.md"
@@ -171,7 +171,7 @@ class TestCLI:
         # Simulate an error that triggers fallback
         mock_gen.generate.side_effect = ValueError("LLM Failed")
         
-        with patch("sys.argv", ["openexec-orchestration", "generate", str(intent_file)]):
+        with patch("sys.argv", ["openexec-planner", "generate", str(intent_file)]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 with patch("shutil.which", return_value="/usr/bin/claude"):
                     result = main()

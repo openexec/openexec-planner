@@ -1,7 +1,7 @@
 """Tests for intent parser."""
 
 import pytest
-from openexec_orchestration import IntentParser
+from openexec_planner import IntentParser
 
 
 class TestIntentParser:

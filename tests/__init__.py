@@ -1,1 +1,1 @@
-"""Tests for openexec-orchestration."""
+"""Tests for openexec-planner."""

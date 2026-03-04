@@ -1,7 +1,7 @@
 """Tests for task scheduler."""
 
 import pytest
-from openexec_orchestration.scheduler import Scheduler, Task
+from openexec_planner.scheduler import Scheduler, Task
 
 
 class TestScheduler:

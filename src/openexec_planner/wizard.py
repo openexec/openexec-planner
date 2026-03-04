@@ -239,7 +239,7 @@ class IntentWizard:
         # Parse response using the generator's JSON extraction
         try:
             data = self.generator._extract_json_from_response(response_text, expect_array=False)
-            
+
             # Update local state
             result = WizardResponse.model_validate(data)
             self.state = result.updated_state
@@ -257,7 +257,7 @@ class IntentWizard:
                 acknowledgement=f"Error parsing AI response: {str(e)[:100]}...",
                 is_complete=False,
                 new_facts=[],
-                new_assumptions=[]
+                new_assumptions=[],
             )
 
     def _scan_for_files(self, message: str) -> dict[str, str]:

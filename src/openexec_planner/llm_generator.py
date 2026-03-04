@@ -696,7 +696,7 @@ class LLMStoryGenerator:
                     pass
 
                 raise ValueError(
-                    f"Failed to parse JSON from response: {e}\n" f"Text (first 500 chars): {json_text[:500]}"
+                    f"Failed to parse JSON from response: {e}\nText (first 500 chars): {json_text[:500]}"
                 ) from e
 
     def _parse_review_response(self, response: str) -> dict[str, Any]:

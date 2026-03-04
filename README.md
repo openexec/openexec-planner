@@ -66,41 +66,53 @@ pip install "openexec-planner[llm]"
 
 ## Usage
 
-The orchestration engine follows a logical project lifecycle:
+The planner follows a logical project lifecycle. Follow these steps to go from an idea to a fully ordered task DAG.
 
-### 1. Gather Intent (Wizard)
-
-Start a guided interview to define your project shape, platform, and contracts. This is the recommended first step for any new project or refactor.
+### 1. Initialize Project
+First, bootstrap the OpenExec structure in your current directory. This creates the `.openexec` folder and a default configuration.
 
 ```bash
-openexec-planner wizard --message "I want to build a new mobile app for gym tracking"
+openexec-planner init
 ```
 
-The wizard will track state and ask follow-up questions until the intent is "Ready", then render an `INTENT.md` file.
+### 2. Gather Intent (Wizard)
+If you only have a rough idea, use the interactive wizard to define your project shape, platforms, and technical contracts.
 
-### 2. Generate Plan (Generate)
+```bash
+openexec-planner wizard
+```
+*The wizard will chat with you, save its progress, and finally render an `INTENT.md` file.*
 
-Once you have an `INTENT.md` (either from the wizard or manual), transform it into structured user stories and tasks.
+### 3. Generate Implementation Plan
+Transform your `INTENT.md` into structured user stories and technical tasks using an LLM.
 
 ```bash
 openexec-planner generate INTENT.md -o .openexec/stories.json
 ```
 
-### 3. Analyze Architecture (Build Tree)
-
-Decompose the goals into a hierarchical tree to visualize the project structure.
-
-```bash
-openexec-planner build-tree INTENT.md -o .openexec/goal_tree.json
-```
-
-### 4. Order Execution (Schedule)
-
-Generate an optimized execution schedule based on task dependencies.
+### 4. Optimize the Schedule
+Take the generated stories and calculate an optimized execution schedule. This performs a **topological sort** to handle dependencies and groups tasks into parallel phases.
 
 ```bash
-openexec-planner schedule .openexec/stories.json -o .openexec/schedule.json
+openexec-planner schedule .openexec/stories.json -o .openexec/tasks.json
 ```
+
+---
+
+## Full Ecosystem Workflow
+
+OpenExec is designed as a **Brain (Planner)** and a **Body (Executor)**.
+
+1.  **Plan (Python):** Use `openexec-planner` (this package) to build the `tasks.json` roadmap.
+2.  **Execute (Go):** Use the [OpenExec Engine](https://github.com/openexec/openexec) to run the tasks.
+
+```bash
+# Once tasks.json is generated in step 4:
+openexec start --ui
+openexec run
+```
+
+---
 
 ## Configuration
 

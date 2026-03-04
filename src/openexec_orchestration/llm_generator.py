@@ -19,8 +19,9 @@ CLI_COMMANDS = {
     "sonnet": "claude",
     "haiku": "claude",
     # Codex CLI
-    "gpt-5": "codex",
-    "gpt-5-codex": "codex",
+    "gpt-5.3-codex": "codex",
+    "gpt-5.3-codex-spark": "codex",
+    "gpt-5.3": "codex",
     # Gemini CLI
     "gemini-3.1-pro-preview": "gemini",
     "gemini-3.1-flash-preview": "gemini",

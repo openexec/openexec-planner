@@ -10,7 +10,7 @@ readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.11"
 authors = [
-    {name = "OpenExec Team", email = "hello@openexec.ai"}
+    {name = "OpenExec Team", email = "hello@openexec.io"}
 ]
 keywords = [
     "ai", 
@@ -39,9 +39,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://openexec.ai"
+Homepage = "https://openexec.io"
 Repository = "https://github.com/openexec/openexec-planner"
-Documentation = "https://docs.openexec.ai"
+Documentation = "https://docs.openexec.io"
 Issues = "https://github.com/openexec/openexec-planner/issues"
 
 [project.optional-dependencies]

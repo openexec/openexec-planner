@@ -237,18 +237,28 @@ class IntentWizard:
         response_text = self.generator._call_llm(prompt)
 
         # Parse response using the generator's JSON extraction
-        # Note: we expect a dict matching WizardResponse
-        data = self.generator._extract_json_from_response(response_text, expect_array=False)
+        try:
+            data = self.generator._extract_json_from_response(response_text, expect_array=False)
+            
+            # Update local state
+            result = WizardResponse.model_validate(data)
+            self.state = result.updated_state
 
-        # Update local state
-        result = WizardResponse.model_validate(data)
-        self.state = result.updated_state
+            # Check if actually complete based on schema rules
+            if self.state.is_ready():
+                result.is_complete = True
 
-        # Check if actually complete based on schema rules
-        if self.state.is_ready():
-            result.is_complete = True
-
-        return result
+            return result
+        except (ValueError, Exception) as e:
+            # If parsing fails, don't crash. Return a retry question.
+            return WizardResponse(
+                updated_state=self.state,
+                next_question="I had trouble processing that response. Could you please rephrase or provide more detail?",
+                acknowledgement=f"Error parsing AI response: {str(e)[:100]}...",
+                is_complete=False,
+                new_facts=[],
+                new_assumptions=[]
+            )
 
     def _scan_for_files(self, message: str) -> dict[str, str]:
         """Scan message for potential file paths and read their content."""

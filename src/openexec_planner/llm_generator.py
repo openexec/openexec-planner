@@ -663,10 +663,41 @@ class LLMStoryGenerator:
                 elif arr_match:
                     json_text = arr_match.group(0)
 
+        # Clean the extracted text
+        json_text = json_text.strip()
+
+        # Strategy 3: Try to parse, then try common cleanup if it fails
         try:
-            return json.loads(json_text.strip())
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Failed to parse JSON from response: {e}\nText: {json_text[:300]}") from e
+            return json.loads(json_text)
+        except json.JSONDecodeError:
+            # Attempt basic cleanup: remove comments and trailing commas
+            # Remove // comments
+            cleaned = re.sub(r"//.*$", "", json_text, flags=re.MULTILINE)
+            # Remove /* */ comments
+            cleaned = re.sub(r"/\*[\s\S]*?\*/", "", cleaned)
+            # Remove trailing commas in objects and arrays
+            cleaned = re.sub(r",\s*(\}|\])", r"\1", cleaned)
+
+            try:
+                return json.loads(cleaned)
+            except json.JSONDecodeError as e:
+                # If it still fails, it might be truncated.
+                # Attempt to balance braces as a last resort
+                try:
+                    if json_text.startswith("{"):
+                        # Count open/close braces
+                        opens = json_text.count("{")
+                        closes = json_text.count("}")
+                        if opens > closes:
+                            # Try to close it
+                            balanced = json_text + "}" * (opens - closes)
+                            return json.loads(balanced)
+                except Exception:
+                    pass
+
+                raise ValueError(
+                    f"Failed to parse JSON from response: {e}\n" f"Text (first 500 chars): {json_text[:500]}"
+                ) from e
 
     def _parse_review_response(self, response: str) -> dict[str, Any]:
         """Parse review JSON response."""

@@ -1,13 +1,13 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "openexec-planner"
 version = "0.1.0"
 description = "AI Project Planning Engine - From Intent to Executable Task DAGs"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "MIT"
 requires-python = ">=3.11"
 authors = [
     {name = "OpenExec Team", email = "hello@openexec.io"}
@@ -63,22 +63,16 @@ all = [
 [project.scripts]
 openexec-planner = "openexec_planner.__main__:main"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["openexec_planner*"]
-
-[tool.setuptools.package-data]
-"openexec_planner" = ["*.j2", "*.json", "*.md"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/openexec_planner"]
 
 [tool.ruff]
-line-length = 88
+line-length = 120
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

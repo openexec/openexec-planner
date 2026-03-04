@@ -226,10 +226,10 @@ mypy src/
 
 ## Related
 
-- [openexec](../openexec) — Main documentation
-- [initial](../initial) — Python CLI (feature-complete)
-- [openexec-execution](../openexec-execution) — Execution engine
-- [openexec-cli](../openexec-cli) — Go CLI with TUI
+- [openexec](https://github.com/openexec/openexec) — Unified Go Execution Engine, Server, and Web Dashboard
+- [openexec.io](https://openexec.io) — Official Website and Documentation
+- [Hyper Engineering Axon](https://github.com/hyperengineering/axon) — High-performance agent execution primitives
+- [Hyper Engineering Tract](https://github.com/hyperengineering/tract) — System-wide state tracking engine
 
 ## License
 

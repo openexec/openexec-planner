@@ -1,7 +1,7 @@
 """Task scheduling based on depends_on."""
 
+from dataclasses import asdict, dataclass
 from typing import Any
-from dataclasses import dataclass, asdict
 
 
 @dataclass
@@ -70,14 +70,14 @@ class Scheduler:
     ) -> list[Task]:
         """Extract tasks from story list."""
         tasks = []
-        
+
         # Track last task of each story for dependency inheritance
         story_last_tasks = {}
 
         for story in stories:
             story_id = story.get("id", "US-???")
             story_title = story.get("title", "Untitled")
-            
+
             # Story-level depends_on (IDs of other stories)
             story_deps = story.get("depends_on", [])
 
@@ -92,7 +92,7 @@ class Scheduler:
                     task_title_raw = task_data.get("title", f"Task {i}")
                     # Use provided depends_on
                     deps = task_data.get("depends_on", [])
-                    
+
                     # Inheritance logic:
                     # Every task in this story should depend on the last tasks of the dependent stories
                     if story_deps:
@@ -100,7 +100,7 @@ class Scheduler:
                             last_tid = story_last_tasks.get(s_dep)
                             if last_tid and last_tid not in deps:
                                 deps.append(last_tid)
-                                
+
                     # Also sequential execution within story if i > 1
                     if i > 1 and prev_task_id and prev_task_id not in deps:
                         deps.append(prev_task_id)
@@ -109,7 +109,7 @@ class Scheduler:
                     task_id = f"{story_id}-T{i}"
                     task_title_raw = task_data
                     deps = [prev_task_id] if prev_task_id else []
-                    
+
                     # Inherit story-level deps
                     if story_deps:
                         for s_dep in story_deps:
@@ -174,11 +174,11 @@ class Scheduler:
 
         # Build dependency graph
         task_map = {t.id: t for t in tasks}
-        
+
         # Build adjacency list and initial in-degree (only for internal tasks)
         adj = {t.id: [] for t in tasks}
         in_degree = {t.id: 0 for t in tasks}
-        
+
         for t in tasks:
             for dep in t.depends_on:
                 if dep in task_map:
@@ -215,9 +215,6 @@ class Scheduler:
         if not tasks:
             return {"phases": [], "total_hours": 0, "tasks": []}
 
-        # Build full task map for lookups
-        task_map = {t.id: t for t in tasks}
-
         # Group into phases
         phases = []
         current_phase = []
@@ -225,14 +222,14 @@ class Scheduler:
 
         for task in tasks:
             # Start new phase if task depends on something in current phase
-            # OR if we just want a fresh start. 
+            # OR if we just want a fresh start.
             # For simplicity in large sets, we could limit phase size.
             needs_new_phase = False
             for dep in task.depends_on:
                 if dep in current_deps:
                     needs_new_phase = True
                     break
-            
+
             if needs_new_phase:
                 if current_phase:
                     phases.append(current_phase)
@@ -248,7 +245,7 @@ class Scheduler:
         # Build output
         total_hours = sum(t.estimated_hours for t in tasks)
         phase_output = []
-        
+
         # FLAT TASKS: Must include ALL tasks from the input, correctly formatted
         flat_tasks = []
         for t in tasks:
@@ -265,7 +262,7 @@ class Scheduler:
                 d["status"] = "pending"
                 d["kind"] = "task"
                 phase_tasks_dicts.append(d)
-                
+
             phase_output.append({
                 "phase": i,
                 "name": f"Phase {i}",

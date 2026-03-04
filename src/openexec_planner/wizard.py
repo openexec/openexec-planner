@@ -4,25 +4,22 @@ This module handles the structured interaction with the user to gather
 requirements and constraints before project execution.
 """
 
-import json
 import os
-from enum import Enum
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 from .utils import safe_resolve_path
 
 
-class ProjectFlow(str, Enum):
+class ProjectFlow(StrEnum):
     """The fundamental nature of the project."""
     GREENFIELD = "greenfield"
     REFACTOR = "refactor"
     UNKNOWN = "unknown"
 
 
-class AppType(str, Enum):
+class AppType(StrEnum):
     """Type of application being built."""
     CLI = "cli"
     WEB = "web"
@@ -35,7 +32,7 @@ class AppType(str, Enum):
     UNKNOWN = "unknown"
 
 
-class Platform(str, Enum):
+class Platform(StrEnum):
     """Target platforms."""
     MACOS = "macos"
     WINDOWS = "windows"
@@ -45,7 +42,6 @@ class Platform(str, Enum):
     WEB = "web"
     CROSS_PLATFORM = "cross-platform"
     UNKNOWN = "unknown"
-
 
 class Goal(BaseModel):
     """A high-level, measurable project objective."""
@@ -73,7 +69,7 @@ class Entity(BaseModel):
     name: str
     description: str = ""
     data_source: str = ""
-    attributes: List[str] = Field(default_factory=list)
+    attributes: list[str] = Field(default_factory=list)
 
 
 class Contract(BaseModel):
@@ -89,30 +85,30 @@ class IntentState(BaseModel):
     project_name: str = ""
     flow: ProjectFlow = ProjectFlow.UNKNOWN
     app_type: AppType = AppType.UNKNOWN
-    platforms: List[Platform] = Field(default_factory=list)
+    platforms: list[Platform] = Field(default_factory=list)
     problem_statement: str = ""
-    
+
     # Goals
-    primary_goals: List[Goal] = Field(default_factory=list)
+    primary_goals: list[Goal] = Field(default_factory=list)
     success_metric: str = ""
 
     # Architecture
-    entities: List[Entity] = Field(default_factory=list)
-    contracts: List[Contract] = Field(default_factory=list)
+    entities: list[Entity] = Field(default_factory=list)
+    contracts: list[Contract] = Field(default_factory=list)
     system_boundary: str = ""  # What's inside vs outside
 
     # Refactoring & Legacy
-    legacy_repo_path: Optional[str] = None
-    refactor_scope: Optional[str] = None  # e.g., Component, System
-    dependencies: List[Dependency] = Field(default_factory=list)  # e.g., Supabase, Redis
+    legacy_repo_path: str | None = None
+    refactor_scope: str | None = None  # e.g., Component, System
+    dependencies: list[Dependency] = Field(default_factory=list)  # e.g., Supabase, Redis
 
     # Constraints & SLOs
-    slos: Dict[str, str] = Field(default_factory=dict)
-    constraints: List[Constraint] = Field(default_factory=list)
+    slos: dict[str, str] = Field(default_factory=dict)
+    constraints: list[Constraint] = Field(default_factory=list)
 
     # Internal Tracking
-    explicit_facts: List[str] = Field(default_factory=list)
-    assumptions: List[str] = Field(default_factory=list)
+    explicit_facts: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
 
     def is_ready(self) -> bool:
         """Check if the intent has reached minimum viability."""
@@ -122,15 +118,15 @@ class IntentState(BaseModel):
             return False
         if not self.problem_statement:
             return False
-        
+
         # Must have at least one primary goal
         if not self.primary_goals:
             return False
-            
+
         # Must have at least one constraint
         if not self.constraints:
             return False
-            
+
         # Must have at least one entity with data source mapping
         if not self.entities or not any(e.data_source for e in self.entities):
             return False
@@ -138,11 +134,11 @@ class IntentState(BaseModel):
         # Desktop/Mobile requires explicit platforms
         if self.app_type in [AppType.DESKTOP, AppType.MOBILE] and not self.platforms:
             return False
-            
+
         # Refactor requires repo path
         if self.flow == ProjectFlow.REFACTOR and not self.legacy_repo_path:
             return False
-            
+
         return True
 
 
@@ -188,10 +184,10 @@ class WizardResponse(BaseModel):
     """Response from the wizard agent."""
     updated_state: IntentState
     next_question: str
-    acknowledgement: Optional[str] = None
+    acknowledgement: str | None = None
     is_complete: bool = False
-    new_facts: List[str] = Field(default_factory=list)
-    new_assumptions: List[str] = Field(default_factory=list)
+    new_facts: list[str] = Field(default_factory=list)
+    new_assumptions: list[str] = Field(default_factory=list)
 
 
 class IntentWizard:
@@ -221,31 +217,31 @@ class IntentWizard:
                 enhanced_message += f"\n--- {path} ---\n{content}\n"
 
         prompt = WIZARD_SYSTEM_PROMPT + f"\n\nCurrent Intent State:\n{self.state.model_dump_json(indent=2)}\n\nUser Message: {enhanced_message}"
-        
+
         # Use LLM generator to process the prompt
         response_text = self.generator._call_llm(prompt)
-        
+
         # Parse response using the generator's JSON extraction
         # Note: we expect a dict matching WizardResponse
         data = self.generator._extract_json_from_response(response_text, expect_array=False)
-        
+
         # Update local state
         result = WizardResponse.model_validate(data)
         self.state = result.updated_state
-        
+
         # Check if actually complete based on schema rules
         if self.state.is_ready():
             result.is_complete = True
-            
+
         return result
 
-    def _scan_for_files(self, message: str) -> Dict[str, str]:
+    def _scan_for_files(self, message: str) -> dict[str, str]:
         """Scan message for potential file paths and read their content."""
         # Simple heuristic for file paths
         # Look for words containing / or .md, .py, .txt etc.
         words = message.split()
         files = {}
-        
+
         for word in words:
             # Clean punctuation
             clean_word = word.strip(".,!?;:\"'")
@@ -269,7 +265,7 @@ class IntentWizard:
         lines.append("## Goals")
         if self.state.problem_statement:
             lines.append(f"- {self.state.problem_statement}")
-        
+
         if self.state.primary_goals:
             for goal in self.state.primary_goals:
                 lines.append(f"### {goal.id}: {goal.description}")
@@ -281,13 +277,13 @@ class IntentWizard:
         lines.append(f"- Global Success Metric: {self.state.success_metric or 'TBD'}")
         lines.append("")
         lines.append("## Requirements")
-        lines.append(f"### REQ-001: Core Architecture")
+        lines.append("### REQ-001: Core Architecture")
         lines.append(f"- Shape: {self.state.app_type.value if self.state.app_type else 'TBD'}")
         if self.state.platforms:
             lines.append(f"- Platforms: {', '.join([p.value for p in self.state.platforms])}")
         else:
             lines.append("- Platforms: TBD")
-        
+
         lines.append("")
         lines.append("### REQ-002: Data Source Mapping")
         if self.state.entities:
@@ -315,5 +311,5 @@ class IntentWizard:
                 lines.append(f"- {constraint.id}: {constraint.description}")
         else:
             lines.append("- TBD: Operational or technical constraints required")
-            
+
         return "\n".join(lines)

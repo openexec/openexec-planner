@@ -25,3 +25,44 @@ class TestGoalTreeBuilder:
         # G1's title is "Goal 1"
         goal_names = [c["goal"] for c in tree["children"] if "Goal 1" in c["goal"]]
         assert len(goal_names) > 0
+
+    def test_build_with_orphan_requirements(self):
+        """Test that requirements not matching any goal are added as separate branches."""
+        intent = {
+            "title": "Project",
+            "goals": ["Goal 1"],
+            "requirements": ["Goal 1 Detail", "Unrelated Requirement"]
+        }
+        
+        builder = GoalTreeBuilder()
+        tree = builder.build(intent)
+        
+        # Should have 2 main branches: Goal 1 and Unrelated Requirement
+        assert len(tree["children"]) == 2
+        
+    def test_build_with_constraints(self):
+        """Test that constraints are added to the goal tree."""
+        intent = {
+            "title": "Project",
+            "goals": [],
+            "requirements": [],
+            "constraints": ["Must use Python 3.11", "No external network"]
+        }
+        
+        builder = GoalTreeBuilder()
+        tree = builder.build(intent)
+        
+        # Root should have a "Constraints" child
+        constraint_nodes = [c for c in tree["children"] if "Constraints" in c["goal"]]
+        assert len(constraint_nodes) == 1
+        assert len(constraint_nodes[0]["children"]) == 2
+        
+    def test_goal_node_dict_input(self):
+        """Test GoalNode handling dictionary input for title."""
+        from openexec_orchestration.goal_tree import GoalNode
+        node = GoalNode(goal={"title": "Dict Goal"})
+        assert node.goal == "Dict Goal"
+        
+        node = GoalNode(goal=123)
+        assert node.goal == "123"
+

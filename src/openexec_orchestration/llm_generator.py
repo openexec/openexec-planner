@@ -37,8 +37,9 @@ CLAUDE_MODELS = {
 }
 
 OPENAI_MODELS = {
-    "gpt-5": "gpt-5",
-    "gpt-5-codex": "gpt-5-codex",
+    "gpt-5.3-codex": "gpt-5.3-codex",
+    "gpt-5.3-codex-spark": "gpt-5.3-codex-spark",
+    "gpt-5.3": "gpt-5.3",
 }
 
 GEMINI_MODELS = {

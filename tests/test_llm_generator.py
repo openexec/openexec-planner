@@ -66,11 +66,7 @@ Let me know if you need anything else.
     @patch("openexec_planner.llm_generator.LLMStoryGenerator._call_llm")
     def test_generate_workflow(self, mock_call):
         """Test full generation workflow with mock LLM."""
-        mock_response = json.dumps({
-            "stories": [
-                {"id": "US-001", "title": "Test", "tasks": []}
-            ]
-        })
+        mock_response = json.dumps({"stories": [{"id": "US-001", "title": "Test", "tasks": []}]})
         mock_call.return_value = f"```json\n{mock_response}\n```"
 
         generator = LLMStoryGenerator()
@@ -122,7 +118,7 @@ Let me know if you need anything else.
         assert generator._detect_provider("sonnet") == "anthropic"
         assert generator._detect_provider("gpt-5.3") == "openai"
         assert generator._detect_provider("gemini-3.1-pro-preview") == "google"
-        assert generator._detect_provider("unknown") == "anthropic" # Default
+        assert generator._detect_provider("unknown") == "anthropic"  # Default
 
     @patch("openexec_planner.llm_generator.LLMStoryGenerator._get_review")
     @patch("openexec_planner.llm_generator.LLMStoryGenerator._fix_stories")
@@ -146,7 +142,7 @@ Let me know if you need anything else.
         # First call rejected, second iteration reached but loop finishes
         mock_get_review.side_effect = [
             {"approved": False, "assessment": "Bad", "key_issues": []},
-            {"approved": True, "assessment": "Fixed"}
+            {"approved": True, "assessment": "Fixed"},
         ]
         mock_fix.return_value = [{"id": "US-001", "fixed": True}]
 
@@ -166,15 +162,11 @@ Let me know if you need anything else.
         mock_get_review.return_value = {
             "approved": False,
             "assessment": "Bad",
-            "key_issues": [
-                {"category": "Logic", "description": "Broken", "examples": ["Ex1"]}
-            ],
+            "key_issues": [{"category": "Logic", "description": "Broken", "examples": ["Ex1"]}],
             "refactoring_plan": {
                 "goal": "Refactor",
-                "proposed_stories": [
-                    {"story": "NewS", "maps_to": "REQ1", "tasks": ["T1"]}
-                ]
-            }
+                "proposed_stories": [{"story": "NewS", "maps_to": "REQ1", "tasks": ["T1"]}],
+            },
         }
         # Force exit after 1st iter to avoid infinite loop in test
         mock_fix.side_effect = Exception("Stop loop")
@@ -199,10 +191,9 @@ Let me know if you need anything else.
         with pytest.raises(RuntimeError, match="CLI command failed"):
             generator._call_cli("prompt")
 
-
     def test_extract_json_mismatched_brackets(self):
         """Test JSON extraction with extra text and mismatched brackets."""
-        response = "Here is some text before { \"key\": \"value\" } and after"
+        response = 'Here is some text before { "key": "value" } and after'
         generator = LLMStoryGenerator()
         data = generator._extract_json_from_response(response)
         assert data == {"key": "value"}
@@ -303,8 +294,6 @@ Let me know if you need anything else.
                 generator._call_google("prompt")
 
     @patch("shutil.which")
-
-
     @patch.object(LLMStoryGenerator, "_call_cli")
     @patch.object(LLMStoryGenerator, "_call_anthropic")
     def test_call_llm_cli_success(self, mock_anthropic, mock_call_cli, mock_which):
@@ -324,7 +313,7 @@ Let me know if you need anything else.
     @patch.object(LLMStoryGenerator, "_call_anthropic")
     def test_call_llm_api_fallback(self, mock_anthropic, mock_call_cli, mock_which):
         """Test _call_llm falls back to API when CLI is missing."""
-        mock_which.return_value = None # CLI missing
+        mock_which.return_value = None  # CLI missing
         mock_anthropic.return_value = "API result"
 
         generator = LLMStoryGenerator(model="sonnet", use_api=False)
@@ -333,6 +322,3 @@ Let me know if you need anything else.
         assert result == "API result"
         mock_anthropic.assert_called_once()
         mock_call_cli.assert_not_called()
-
-
-

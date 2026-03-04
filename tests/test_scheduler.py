@@ -60,15 +60,7 @@ class TestScheduler:
 
     def test_extract_tasks_from_tree(self):
         """Test extracting tasks from a nested goal tree."""
-        tree = {
-            "goal": "Root",
-            "children": [
-                {
-                    "goal": "Sub1",
-                    "children": [{"task": "T1"}]
-                }
-            ]
-        }
+        tree = {"goal": "Root", "children": [{"goal": "Sub1", "children": [{"task": "T1"}]}]}
 
         scheduler = Scheduler()
         tasks = scheduler._extract_tasks_from_tree(tree)
@@ -88,8 +80,7 @@ class TestScheduler:
         scheduler = Scheduler()
         schedule = scheduler._calculate_schedule(tasks)
 
-        assert len(schedule["phases"]) == 2 # T2 depends on T1, must be in new phase
+        assert len(schedule["phases"]) == 2  # T2 depends on T1, must be in new phase
         assert schedule["total_hours"] == 4.0
         assert schedule["phases"][0]["tasks"][0]["id"] == "T1"
         assert schedule["phases"][1]["tasks"][0]["id"] == "T2"
-

@@ -8,10 +8,7 @@ class TestStoryGenerator:
 
     def test_generate_from_goals(self):
         """Test generating stories from goals and related requirements."""
-        intent = {
-            "goals": ["Build a REST API"],
-            "requirements": ["API returns JSON", "API handles errors"]
-        }
+        intent = {"goals": ["Build a REST API"], "requirements": ["API returns JSON", "API handles errors"]}
 
         generator = StoryGenerator()
         stories = generator.generate(intent)
@@ -24,10 +21,7 @@ class TestStoryGenerator:
 
     def test_generate_from_orphan_requirements(self):
         """Test requirements not covered by goals get their own stories."""
-        intent = {
-            "goals": [],
-            "requirements": ["Implement Auth", "Add Database"]
-        }
+        intent = {"goals": [], "requirements": ["Implement Auth", "Add Database"]}
 
         generator = StoryGenerator()
         stories = generator.generate(intent)
@@ -69,7 +63,7 @@ class TestStoryGenerator:
 
         # Short list
         tasks = generator._generate_tasks("Simple Task", ["AC1"])
-        assert len(tasks) == 3 # Design, Implement, Test
+        assert len(tasks) == 3  # Design, Implement, Test
 
         # Long list adds Documentation
         tasks = generator._generate_tasks("Complex Task", ["AC1", "AC2", "AC3"])

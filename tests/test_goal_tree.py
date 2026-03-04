@@ -12,8 +12,8 @@ class TestGoalTreeBuilder:
             "title": "Test Project",
             "goals": [
                 {"id": "G1", "title": "Goal 1", "description": "Desc 1"},
-                {"id": "G2", "title": "Goal 2", "description": "Desc 2", "parent_goal": "G1"}
-            ]
+                {"id": "G2", "title": "Goal 2", "description": "Desc 2", "parent_goal": "G1"},
+            ],
         }
 
         builder = GoalTreeBuilder()
@@ -27,11 +27,7 @@ class TestGoalTreeBuilder:
 
     def test_build_with_orphan_requirements(self):
         """Test that requirements not matching any goal are added as separate branches."""
-        intent = {
-            "title": "Project",
-            "goals": ["Goal 1"],
-            "requirements": ["Goal 1 Detail", "Unrelated Requirement"]
-        }
+        intent = {"title": "Project", "goals": ["Goal 1"], "requirements": ["Goal 1 Detail", "Unrelated Requirement"]}
 
         builder = GoalTreeBuilder()
         tree = builder.build(intent)
@@ -45,7 +41,7 @@ class TestGoalTreeBuilder:
             "title": "Project",
             "goals": [],
             "requirements": [],
-            "constraints": ["Must use Python 3.11", "No external network"]
+            "constraints": ["Must use Python 3.11", "No external network"],
         }
 
         builder = GoalTreeBuilder()
@@ -59,9 +55,9 @@ class TestGoalTreeBuilder:
     def test_goal_node_dict_input(self):
         """Test GoalNode handling dictionary input for title."""
         from openexec_planner.goal_tree import GoalNode
+
         node = GoalNode(goal={"title": "Dict Goal"})
         assert node.goal == "Dict Goal"
 
         node = GoalNode(goal=123)
         assert node.goal == "123"
-

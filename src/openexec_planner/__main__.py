@@ -26,7 +26,9 @@ def main() -> int:
     # init command
     init_parser = subparsers.add_parser("init", help="Initialize a new OpenExec project structure")
     init_parser.add_argument("--name", "-n", help="Project name")
-    init_parser.add_argument("--model", "-m", default="sonnet", help="Default model to use (sonnet, opus, gpt-5.3, etc.)")
+    init_parser.add_argument(
+        "--model", "-m", default="sonnet", help="Default model to use (sonnet, opus, gpt-5.3, etc.)"
+    )
 
     # parse command
     parse_parser = subparsers.add_parser("parse", help="Parse an intent document")
@@ -98,6 +100,7 @@ def main() -> int:
 
     if args.command == "version":
         from . import __version__
+
         print(f"openexec-planner {__version__}")
         return 0
 
@@ -142,7 +145,7 @@ def cmd_init(args: argparse.Namespace) -> int:
             print("\nAborted.")
             return 1
 
-    if not model or model == "sonnet": # prompt even if default 'sonnet' is set but not explicitly passed
+    if not model or model == "sonnet":  # prompt even if default 'sonnet' is set but not explicitly passed
         try:
             print("\nAvailable models:")
             print("  - sonnet (Claude 4.6 Sonnet - Default)")
@@ -306,9 +309,16 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
     # Detect CLI availability
     import shutil
-    cli_commands = {"opus": "claude", "sonnet": "claude", "haiku": "claude",
-                    "gpt-5.3-codex": "codex", "gpt-5.3": "codex",
-                    "gemini-3.1-pro-preview": "gemini", "gemini-3.1-flash-preview": "gemini"}
+
+    cli_commands = {
+        "opus": "claude",
+        "sonnet": "claude",
+        "haiku": "claude",
+        "gpt-5.3-codex": "codex",
+        "gpt-5.3": "codex",
+        "gemini-3.1-pro-preview": "gemini",
+        "gemini-3.1-flash-preview": "gemini",
+    }
     executor_cli = cli_commands.get(model, "claude")
     executor_cli_available = shutil.which(executor_cli) is not None
 
@@ -368,6 +378,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
     except KeyError as e:
         # This shouldn't happen - indicates a bug in response handling
         import traceback
+
         print(f"Warning: Unexpected KeyError in LLM generation: {e}", file=sys.stderr)
         print("This may indicate the CLI returned unexpected output format.", file=sys.stderr)
         print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
@@ -378,6 +389,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         result_data = {"schema_version": "1.0", "goals": [], "stories": fallback_generator.generate(intent)}
     except Exception as e:
         import traceback
+
         print(f"Warning: LLM generation failed ({type(e).__name__}: {e})", file=sys.stderr)
         print("Falling back to rule-based generation...", file=sys.stderr)
         parser = IntentParser()

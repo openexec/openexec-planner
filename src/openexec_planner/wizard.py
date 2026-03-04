@@ -14,6 +14,7 @@ from .utils import safe_resolve_path
 
 class ProjectFlow(StrEnum):
     """The fundamental nature of the project."""
+
     GREENFIELD = "greenfield"
     REFACTOR = "refactor"
     UNKNOWN = "unknown"
@@ -21,6 +22,7 @@ class ProjectFlow(StrEnum):
 
 class AppType(StrEnum):
     """Type of application being built."""
+
     CLI = "cli"
     WEB = "web"
     MOBILE = "mobile"
@@ -34,6 +36,7 @@ class AppType(StrEnum):
 
 class Platform(StrEnum):
     """Target platforms."""
+
     MACOS = "macos"
     WINDOWS = "windows"
     LINUX = "linux"
@@ -43,8 +46,10 @@ class Platform(StrEnum):
     CROSS_PLATFORM = "cross-platform"
     UNKNOWN = "unknown"
 
+
 class Goal(BaseModel):
     """A high-level, measurable project objective."""
+
     id: str
     description: str
     success_criteria: str = ""  # How do we know this goal is met?
@@ -53,12 +58,14 @@ class Goal(BaseModel):
 
 class Constraint(BaseModel):
     """A project constraint or technical limitation."""
+
     id: str
     description: str
 
 
 class Dependency(BaseModel):
     """An external dependency or infrastructure component."""
+
     name: str
     description: str = ""
     type: str = ""  # e.g., database, api, engine
@@ -66,6 +73,7 @@ class Dependency(BaseModel):
 
 class Entity(BaseModel):
     """A core business noun and its role."""
+
     name: str
     description: str = ""
     data_source: str = ""
@@ -74,6 +82,7 @@ class Entity(BaseModel):
 
 class Contract(BaseModel):
     """An integration point between components."""
+
     source: str = ""
     target: str = ""
     protocol: str = ""  # e.g., REST, GraphQL, gRPC
@@ -82,6 +91,7 @@ class Contract(BaseModel):
 
 class IntentState(BaseModel):
     """The structured state of the project intent."""
+
     project_name: str = ""
     flow: ProjectFlow = ProjectFlow.UNKNOWN
     app_type: AppType = AppType.UNKNOWN
@@ -182,6 +192,7 @@ RESPONSE FORMAT (JSON):
 
 class WizardResponse(BaseModel):
     """Response from the wizard agent."""
+
     updated_state: IntentState
     next_question: str
     acknowledgement: str | None = None
@@ -196,6 +207,7 @@ class IntentWizard:
     def __init__(self, model: str = "sonnet"):
         """Initialize wizard with LLM model."""
         from .llm_generator import LLMStoryGenerator
+
         self.generator = LLMStoryGenerator(model=model)
         self.state = IntentState()
 
@@ -216,7 +228,10 @@ class IntentWizard:
             for path, content in context_files.items():
                 enhanced_message += f"\n--- {path} ---\n{content}\n"
 
-        prompt = WIZARD_SYSTEM_PROMPT + f"\n\nCurrent Intent State:\n{self.state.model_dump_json(indent=2)}\n\nUser Message: {enhanced_message}"
+        prompt = (
+            WIZARD_SYSTEM_PROMPT
+            + f"\n\nCurrent Intent State:\n{self.state.model_dump_json(indent=2)}\n\nUser Message: {enhanced_message}"
+        )
 
         # Use LLM generator to process the prompt
         response_text = self.generator._call_llm(prompt)

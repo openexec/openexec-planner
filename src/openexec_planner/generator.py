@@ -58,9 +58,7 @@ class StoryGenerator:
 
         return stories
 
-    def _create_story(
-        self, num: int, title: str, acceptance_criteria: list[str]
-    ) -> Story:
+    def _create_story(self, num: int, title: str, acceptance_criteria: list[str]) -> Story:
         """Create a story from title and acceptance criteria."""
         # Clean up the title
         title = title.strip()
@@ -85,14 +83,12 @@ class StoryGenerator:
         lower = title.lower()
         for verb in ["implement", "create", "add", "build", "develop", "make"]:
             if lower.startswith(verb):
-                lower = lower[len(verb):].strip()
+                lower = lower[len(verb) :].strip()
                 break
 
         return f"As a user, I want to {lower}"
 
-    def _extract_acceptance_criteria(
-        self, goal: str, requirements: list[str]
-    ) -> list[str]:
+    def _extract_acceptance_criteria(self, goal: str, requirements: list[str]) -> list[str]:
         """Extract acceptance criteria from related requirements."""
         criteria = []
         goal_words = set(goal.lower().split())

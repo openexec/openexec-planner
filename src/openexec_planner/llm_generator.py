@@ -243,7 +243,6 @@ INTENT DOCUMENT:
 Generate the JSON object containing goals and stories. Output ONLY valid JSON, no markdown or explanations."""
 
 
-
 class LLMStoryGenerator:
     """Generates high-quality user stories using LLM."""
 
@@ -402,7 +401,11 @@ class LLMStoryGenerator:
                 continue
 
             # Skip tool execution logs like [Tool] write_file
-            if stripped.startswith("[") and "]" in stripped and any(x in stripped for x in ["Tool", "workdir", "sandbox"]):
+            if (
+                stripped.startswith("[")
+                and "]" in stripped
+                and any(x in stripped for x in ["Tool", "workdir", "sandbox"])
+            ):
                 continue
 
             if not found_content_start and not stripped:
@@ -504,9 +507,7 @@ class LLMStoryGenerator:
             print(f"  Review iteration {iteration + 1}/{max_iterations}")
 
             # Get review from reviewer model
-            review_result = self._get_review(
-                current_data.get("stories", []), intent_content, reviewer_model
-            )
+            review_result = self._get_review(current_data.get("stories", []), intent_content, reviewer_model)
 
             if review_result.get("approved", False):
                 assessment = review_result.get("assessment", "Stories are implementation-ready")
@@ -546,9 +547,7 @@ class LLMStoryGenerator:
 
             # Fix stories using executor model
             print("  Fixing stories...")
-            fixed_stories = self._fix_stories(
-                current_data.get("stories", []), intent_content, review_result
-            )
+            fixed_stories = self._fix_stories(current_data.get("stories", []), intent_content, review_result)
             # Retain original goals, update stories
             current_data["stories"] = fixed_stories
 
@@ -588,13 +587,9 @@ class LLMStoryGenerator:
         else:
             raise ValueError(f"Unknown provider: {provider}")
 
-    def _get_review(
-        self, stories: list[dict[str, Any]], intent_content: str, reviewer_model: str
-    ) -> dict[str, Any]:
+    def _get_review(self, stories: list[dict[str, Any]], intent_content: str, reviewer_model: str) -> dict[str, Any]:
         """Get review decision from reviewer model."""
-        prompt = STORY_REVIEW_PROMPT.format(
-            intent=intent_content, stories=json.dumps(stories, indent=2)
-        )
+        prompt = STORY_REVIEW_PROMPT.format(intent=intent_content, stories=json.dumps(stories, indent=2))
 
         response = self._call_llm(prompt, model=reviewer_model)
         return self._parse_review_response(response)

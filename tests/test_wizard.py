@@ -30,10 +30,10 @@ class TestIntentWizard:
                 "project_name": "Test App",
                 "flow": "greenfield",
                 "app_type": "web",
-                "problem_statement": "Need a test app"
+                "problem_statement": "Need a test app",
             },
             "next_question": "What are your primary goals?",
-            "is_complete": False
+            "is_complete": False,
         }
         mock_gen._call_llm.return_value = "raw response"
         mock_gen._extract_json_from_response.return_value = mock_response
@@ -55,12 +55,12 @@ class TestIntentWizard:
         state.flow = ProjectFlow.GREENFIELD
         state.app_type = AppType.WEB
         state.problem_statement = "Test problem"
-        assert not state.is_ready() # Missing goals, constraints, entities
+        assert not state.is_ready()  # Missing goals, constraints, entities
 
         # Add goals and constraints
         state.primary_goals = [Goal(id="G1", description="Test goal")]
         state.constraints = [Constraint(id="C1", description="Test constraint")]
-        assert not state.is_ready() # Missing entities
+        assert not state.is_ready()  # Missing entities
 
         # Add entity with data source
         state.entities = [Entity(name="User", data_source="Postgres")]
@@ -68,16 +68,15 @@ class TestIntentWizard:
 
         # Mobile requirement check
         state.app_type = AppType.MOBILE
-        assert not state.is_ready() # Needs platform
+        assert not state.is_ready()  # Needs platform
         state.platforms = [Platform.IOS]
         assert state.is_ready()
 
         # Refactor requirement check
         state.flow = ProjectFlow.REFACTOR
-        assert not state.is_ready() # Needs legacy path
+        assert not state.is_ready()  # Needs legacy path
         state.legacy_repo_path = "/path/to/repo"
         assert state.is_ready()
-
 
     def test_render_intent_md(self):
         """Test rendering state to markdown."""

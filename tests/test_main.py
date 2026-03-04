@@ -69,7 +69,11 @@ class TestCLI:
                 # We need to simulate change dir or absolute paths in cmd_init
                 # For this test, let's patch Path(".") to point to tmp_path
                 from pathlib import Path as PathLibPath
-                with patch("openexec_planner.__main__.Path", side_effect=lambda x: PathLibPath(tmp_path) if x == "." else PathLibPath(tmp_path) / x):
+
+                with patch(
+                    "openexec_planner.__main__.Path",
+                    side_effect=lambda x: PathLibPath(tmp_path) if x == "." else PathLibPath(tmp_path) / x,
+                ):
                     result = main()
                     assert result == 0
                     assert (tmp_path / ".openexec" / "data").exists()
@@ -129,7 +133,6 @@ class TestCLI:
                 # Should have updated the file
                 assert state_file.exists()
 
-
     def test_build_tree_output_file(self, tmp_path):
         """Test build-tree command with output file."""
         intent_file = tmp_path / "INTENT.md"
@@ -141,7 +144,6 @@ class TestCLI:
                 main()
                 assert output_file.exists()
                 assert "goal" in output_file.read_text()
-
 
     @patch("openexec_planner.__main__.LLMStoryGenerator")
     def test_generate_with_reviewer(self, mock_gen_class, tmp_path):
@@ -160,7 +162,6 @@ class TestCLI:
                     result = main()
                     assert result == 0
                     mock_gen.review.assert_called_once()
-
 
     def test_build_tree_command(self, tmp_path, capsys):
         """Test the build-tree command."""
@@ -195,6 +196,3 @@ class TestCLI:
                     # Fallback message goes to stderr
                     assert "Falling back to rule-based generation" in captured.err
                     assert "US-001" in captured.out
-
-
-

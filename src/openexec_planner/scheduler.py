@@ -44,12 +44,14 @@ class Scheduler:
                     if isinstance(t, Task):
                         tasks.append(t)
                     elif isinstance(t, dict):
-                        tasks.append(Task(
-                            id=t.get("id", ""),
-                            title=t.get("title", ""),
-                            depends_on=t.get("depends_on", []),
-                            estimated_hours=t.get("estimated_hours", 4.0)
-                        ))
+                        tasks.append(
+                            Task(
+                                id=t.get("id", ""),
+                                title=t.get("title", ""),
+                                depends_on=t.get("depends_on", []),
+                                estimated_hours=t.get("estimated_hours", 4.0),
+                            )
+                        )
             elif "goal" in data:
                 tasks = self._extract_tasks_from_tree(data)
             else:
@@ -65,9 +67,7 @@ class Scheduler:
 
         return schedule
 
-    def _extract_tasks_from_stories(
-        self, stories: list[dict[str, Any]]
-    ) -> list[Task]:
+    def _extract_tasks_from_stories(self, stories: list[dict[str, Any]]) -> list[Task]:
         """Extract tasks from story list."""
         tasks = []
 
@@ -129,9 +129,7 @@ class Scheduler:
 
         return tasks
 
-    def _extract_tasks_from_tree(
-        self, tree: dict[str, Any], prefix: str = ""
-    ) -> list[Task]:
+    def _extract_tasks_from_tree(self, tree: dict[str, Any], prefix: str = "") -> list[Task]:
         """Extract tasks from goal tree."""
         tasks = []
 
@@ -263,17 +261,19 @@ class Scheduler:
                 d["kind"] = "task"
                 phase_tasks_dicts.append(d)
 
-            phase_output.append({
-                "phase": i,
-                "name": f"Phase {i}",
-                "hours": phase_hours,
-                "tasks": phase_tasks_dicts,
-            })
+            phase_output.append(
+                {
+                    "phase": i,
+                    "name": f"Phase {i}",
+                    "hours": phase_hours,
+                    "tasks": phase_tasks_dicts,
+                }
+            )
 
         return {
             "phases": phase_output,
             "total_hours": total_hours,
             "task_count": len(tasks),
             "phase_count": len(phases),
-            "tasks": flat_tasks, # Flat list for execution engine
+            "tasks": flat_tasks,  # Flat list for execution engine
         }

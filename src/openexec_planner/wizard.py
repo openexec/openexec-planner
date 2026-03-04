@@ -251,9 +251,10 @@ class IntentWizard:
                     safe_path = safe_resolve_path(os.getcwd(), clean_word)
                     if safe_path.is_file():
                         # Don't read huge files
-                        if safe_path.stat().st_size < 100 * 1024: # 100KB limit
+                        if safe_path.stat().st_size < 100 * 1024:  # 100KB limit
                             files[clean_word] = safe_path.read_text(errors="ignore")
-                except Exception:
+                except (OSError, ValueError):
+                    # Skip files that can't be read or are outside workspace
                     continue
         return files
 

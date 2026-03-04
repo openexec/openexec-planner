@@ -9,7 +9,7 @@ import json
 import os
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404
 from typing import Any
 
 # Model to CLI command mapping
@@ -327,14 +327,13 @@ class LLMStoryGenerator:
 
         try:
             # Run the command with prompt via stdin
-            process = subprocess.Popen(
+            process = subprocess.Popen(  # nosec B603
                 cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
             )
-
             # Send prompt to stdin and close
             stdout, _ = process.communicate(input=prompt, timeout=300)
 

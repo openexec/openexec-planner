@@ -45,9 +45,23 @@ The **OpenExec Orchestration** module transforms high-level project intents (PRD
 ## Installation
 
 ```bash
-git clone https://github.com/openexec/openexec.git
-cd openexec/openexec-orchestration
+git clone https://github.com/openexec/openexec-orchestration.git
+cd openexec-orchestration
 pip install -e .
+```
+
+### CLI Dependencies
+
+By default, the orchestration engine uses external CLI tools to call LLMs. Ensure you have the relevant tools installed and authenticated:
+
+- **Claude Code**: `claude` CLI
+- **Codex**: `codex` CLI
+- **Gemini**: `gemini` CLI
+- **OpenCode**: `opencode` (Ollama)
+
+To use direct API calls instead, install the optional dependencies:
+```bash
+pip install "openexec-orchestration[llm]"
 ```
 
 ## Usage

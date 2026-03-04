@@ -434,7 +434,11 @@ class LLMStoryGenerator:
             messages=[{"role": "user", "content": prompt}],
         )
 
-        return message.content[0].text
+        # Handle complex message content
+        content = message.content[0]
+        if hasattr(content, "text"):
+            return str(content.text)
+        return str(content)
 
     def _call_openai(self, prompt: str) -> str:
         """Call OpenAI API."""
@@ -456,7 +460,8 @@ class LLMStoryGenerator:
             max_tokens=4096,
         )
 
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+        return content if content is not None else ""
 
     def _call_google(self, prompt: str) -> str:
         """Call Google Gemini API."""
@@ -470,11 +475,11 @@ class LLMStoryGenerator:
             raise ValueError("GOOGLE_API_KEY or GEMINI_API_KEY environment variable not set")
 
         model_id = GEMINI_MODELS.get(self.model, self.model)
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_id)
+        genai.configure(api_key=api_key)  # type: ignore
+        model = genai.GenerativeModel(model_id)  # type: ignore
 
         response = model.generate_content(prompt)
-        return response.text
+        return str(response.text)
 
     def review(
         self,
@@ -611,7 +616,7 @@ class LLMStoryGenerator:
 
         response = self._call_llm(prompt)
         parsed = self._parse_response(response)
-        return parsed.get("stories", [])
+        return parsed.get("stories", [])  # type: ignore
 
     def _extract_json_from_response(self, response: str, expect_array: bool = False) -> Any:
         """Extract JSON data from agent response.

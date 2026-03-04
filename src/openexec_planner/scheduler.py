@@ -72,7 +72,7 @@ class Scheduler:
         tasks = []
 
         # Track last task of each story for dependency inheritance
-        story_last_tasks = {}
+        story_last_tasks: dict[str, str] = {}
 
         for story in stories:
             story_id = story.get("id", "US-???")
@@ -176,8 +176,8 @@ class Scheduler:
         task_map = {t.id: t for t in tasks}
 
         # Build adjacency list and initial in-degree (only for internal tasks)
-        adj = {t.id: [] for t in tasks}
-        in_degree = {t.id: 0 for t in tasks}
+        adj: dict[str, list[str]] = {t.id: [] for t in tasks}
+        in_degree: dict[str, int] = {t.id: 0 for t in tasks}
 
         for t in tasks:
             for dep in t.depends_on:
@@ -217,8 +217,8 @@ class Scheduler:
 
         # Group into phases
         phases = []
-        current_phase = []
-        current_deps = set()
+        current_phase: list[Task] = []
+        current_deps: set[str] = set()
 
         for task in tasks:
             # Start new phase if task depends on something in current phase

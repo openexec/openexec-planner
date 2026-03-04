@@ -12,7 +12,7 @@ class GoalNode:
     children: list["GoalNode"] = field(default_factory=list)
     task_id: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Handle non-string goal inputs."""
         if isinstance(self.goal, dict):
             self.goal = self.goal.get("title") or self.goal.get("goal") or str(self.goal)

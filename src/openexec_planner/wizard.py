@@ -195,7 +195,7 @@ class IntentWizard:
 
     def __init__(self, model: str = "sonnet"):
         """Initialize wizard with LLM model."""
-        from openexec_planner.llm_generator import LLMStoryGenerator
+        from .llm_generator import LLMStoryGenerator
         self.generator = LLMStoryGenerator(model=model)
         self.state = IntentState()
 

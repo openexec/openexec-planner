@@ -31,7 +31,7 @@ def safe_resolve_path(base_dir: str | Path, target_path: str | Path) -> Path:
             target = resolved_target.relative_to(base)
         except ValueError:
             # If not inside, just use the name to be safe
-            target = target.name
+            target = Path(target.name)
 
     resolved = (base / target).resolve()
 

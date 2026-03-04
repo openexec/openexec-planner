@@ -1,8 +1,7 @@
 """Story generation from intent."""
 
-import re
+from dataclasses import asdict, dataclass
 from typing import Any
-from dataclasses import dataclass, asdict
 
 
 @dataclass
@@ -149,7 +148,7 @@ class StoryGenerator:
         tasks.append(f"Implement: Build {title}")
 
         # Test task
-        tasks.append(f"Test: Verify acceptance criteria")
+        tasks.append("Test: Verify acceptance criteria")
 
         # Documentation task if substantial
         if len(criteria) > 2:

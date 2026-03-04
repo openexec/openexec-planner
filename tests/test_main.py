@@ -1,9 +1,8 @@
 """Tests for CLI entrypoint."""
 
 import json
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import MagicMock, patch
+
 from openexec_planner.__main__ import main
 
 
@@ -22,7 +21,7 @@ class TestCLI:
         """Test the parse command."""
         intent_file = tmp_path / "INTENT.md"
         intent_file.write_text("# My Project\n\n## Goals\n- Goal 1")
-        
+
         with patch("sys.argv", ["openexec-planner", "parse", str(intent_file)]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 result = main()
@@ -37,11 +36,11 @@ class TestCLI:
         intent_file = tmp_path / "INTENT.md"
         intent_file.write_text("# My Project")
         output_file = tmp_path / "stories.json"
-        
+
         mock_gen = MagicMock()
         mock_gen_class.return_value = mock_gen
         mock_gen.generate.return_value = {"stories": []}
-        
+
         with patch("sys.argv", ["openexec-planner", "generate", str(intent_file), "-o", str(output_file)]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 # Mock shutil.which to bypass CLI check
@@ -56,7 +55,7 @@ class TestCLI:
         """Test the schedule command."""
         stories_file = tmp_path / "stories.json"
         stories_file.write_text(json.dumps({"stories": []}))
-        
+
         with patch("sys.argv", ["openexec-planner", "schedule", str(stories_file)]):
             result = main()
             assert result == 0
@@ -68,13 +67,13 @@ class TestCLI:
         """Test the wizard command (single turn)."""
         mock_wizard = MagicMock()
         mock_wizard_class.return_value = mock_wizard
-        
+
         mock_resp = MagicMock()
         mock_resp.next_question = "Question 1"
         mock_resp.model_dump_json.return_value = '{"question": "Question 1"}'
-        
+
         mock_wizard.process_message.return_value = mock_resp
-        
+
         with patch("sys.argv", ["openexec-planner", "wizard", "-m", "Hello"]):
             result = main()
             assert result == 0
@@ -88,7 +87,7 @@ class TestCLI:
         mock_wizard = MagicMock()
         mock_wizard_class.return_value = mock_wizard
         mock_wizard.render_intent_md.return_value = "# Rendered"
-        
+
         with patch("sys.argv", ["openexec-planner", "wizard", "--render"]):
             result = main()
             assert result == 0
@@ -100,13 +99,13 @@ class TestCLI:
         state_file = tmp_path / "state.json"
         state_data = {"project_name": "Loaded Project"}
         state_file.write_text(json.dumps(state_data))
-        
+
         with patch("openexec_planner.wizard.IntentWizard") as mock_wizard_class:
             mock_wizard = MagicMock()
             mock_wizard_class.return_value = mock_wizard
             # Mocking process_message to not crash
             mock_wizard.process_message.return_value = MagicMock()
-            
+
             with patch("sys.argv", ["openexec-planner", "wizard", "--state-file", str(state_file), "-m", "msg"]):
                 main()
                 # Should have loaded the state
@@ -120,7 +119,7 @@ class TestCLI:
         intent_file = tmp_path / "INTENT.md"
         intent_file.write_text("# Title")
         output_file = tmp_path / "tree.json"
-        
+
         with patch("sys.argv", ["openexec-planner", "build-tree", str(intent_file), "-o", str(output_file)]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 main()
@@ -133,12 +132,12 @@ class TestCLI:
         """Test generate command with a reviewer model."""
         intent_file = tmp_path / "INTENT.md"
         intent_file.write_text("# My Project")
-        
+
         mock_gen = MagicMock()
         mock_gen_class.return_value = mock_gen
         mock_gen.generate.return_value = {"stories": []}
         mock_gen.review.return_value = {"stories": [], "reviewed": True}
-        
+
         with patch("sys.argv", ["openexec-planner", "generate", str(intent_file), "--reviewer", "opus"]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 with patch("shutil.which", return_value="/usr/bin/claude"):
@@ -151,7 +150,7 @@ class TestCLI:
         """Test the build-tree command."""
         intent_file = tmp_path / "INTENT.md"
         intent_file.write_text("# Test Project\n\n## Goals\n- Goal 1")
-        
+
         with patch("sys.argv", ["openexec-planner", "build-tree", str(intent_file)]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 result = main()
@@ -165,12 +164,12 @@ class TestCLI:
         """Test generate command falling back to rules on LLM error."""
         intent_file = tmp_path / "INTENT.md"
         intent_file.write_text("# My Project\n\n## Goals\n- Goal 1")
-        
+
         mock_gen = MagicMock()
         mock_gen_class.return_value = mock_gen
         # Simulate an error that triggers fallback
         mock_gen.generate.side_effect = ValueError("LLM Failed")
-        
+
         with patch("sys.argv", ["openexec-planner", "generate", str(intent_file)]):
             with patch("os.getcwd", return_value=str(tmp_path)):
                 with patch("shutil.which", return_value="/usr/bin/claude"):

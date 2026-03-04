@@ -6,10 +6,10 @@ import os
 import sys
 from pathlib import Path
 
-from .parser import IntentParser
 from .generator import StoryGenerator
-from .llm_generator import LLMStoryGenerator
 from .goal_tree import GoalTreeBuilder
+from .llm_generator import LLMStoryGenerator
+from .parser import IntentParser
 from .scheduler import Scheduler
 from .utils import safe_resolve_path
 
@@ -116,30 +116,30 @@ def main() -> int:
 
 def cmd_wizard(args: argparse.Namespace) -> int:
     """Handle wizard command."""
-    from .wizard import IntentWizard, IntentState
-    
+    from .wizard import IntentState, IntentWizard
+
     wizard = IntentWizard(model=args.model)
-    
+
     # Load state
     if args.state:
         wizard.state = IntentState.model_validate_json(args.state)
     elif args.state_file and args.state_file.exists():
         wizard.state = IntentState.model_validate_json(args.state_file.read_text())
-        
+
     if args.render:
         print(wizard.render_intent_md())
         return 0
-        
+
     if not args.message:
         print("Error: --message required for wizard interaction", file=sys.stderr)
         return 1
-        
+
     result = wizard.process_message(args.message)
-    
+
     # If a state file was provided, update it
     if args.state_file:
         args.state_file.write_text(wizard.state.model_dump_json(indent=2))
-        
+
     print(result.model_dump_json(indent=2))
     return 0
 
@@ -252,7 +252,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         if "API_KEY" in error_msg.upper():
             print(f"Warning: API key not set - {error_msg}", file=sys.stderr)
         else:
-            print(f"Warning: LLM response parsing failed", file=sys.stderr)
+            print("Warning: LLM response parsing failed", file=sys.stderr)
             print(f"Error: {error_msg[:500]}", file=sys.stderr)
         print("Falling back to rule-based generation...", file=sys.stderr)
         parser = IntentParser()

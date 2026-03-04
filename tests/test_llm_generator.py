@@ -1,8 +1,10 @@
 """Tests for LLM story generator."""
 
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pytest
+
 from openexec_planner.llm_generator import LLMStoryGenerator
 
 
@@ -39,7 +41,7 @@ tokens used: 500
 """
         generator = LLMStoryGenerator()
         cleaned = generator._clean_output(raw_output)
-        
+
         expected = '{\n  "stories": []\n}'
         assert cleaned == expected
 
@@ -58,7 +60,7 @@ Let me know if you need anything else.
 """
         generator = LLMStoryGenerator()
         data = generator._extract_json_from_response(response)
-        
+
         assert data["stories"][0]["id"] == "US-001"
 
     @patch.object(LLMStoryGenerator, "_call_llm")
@@ -128,10 +130,10 @@ Let me know if you need anything else.
         """Test the review loop with immediate approval."""
         generator = LLMStoryGenerator()
         mock_get_review.return_value = {"approved": True, "assessment": "Good"}
-        
+
         initial_data = {"stories": [{"id": "US-001"}]}
         result = generator.review(initial_data, "intent", "reviewer-model")
-        
+
         assert result == initial_data
         mock_get_review.assert_called_once()
         mock_fix.assert_not_called()
@@ -147,11 +149,11 @@ Let me know if you need anything else.
             {"approved": True, "assessment": "Fixed"}
         ]
         mock_fix.return_value = [{"id": "US-001", "fixed": True}]
-        
+
         initial_data = {"stories": [{"id": "US-001"}]}
         # We need max_iterations >= 2
         result = generator.review(initial_data, "intent", "reviewer-model", max_iterations=2)
-        
+
         assert result["stories"][0].get("fixed") is True
         assert mock_get_review.call_count == 2
         mock_fix.assert_called_once()
@@ -162,8 +164,8 @@ Let me know if you need anything else.
         """Test the review loop with complex rejection feedback to trigger print paths."""
         generator = LLMStoryGenerator()
         mock_get_review.return_value = {
-            "approved": False, 
-            "assessment": "Bad", 
+            "approved": False,
+            "assessment": "Bad",
             "key_issues": [
                 {"category": "Logic", "description": "Broken", "examples": ["Ex1"]}
             ],
@@ -176,10 +178,10 @@ Let me know if you need anything else.
         }
         # Force exit after 1st iter to avoid infinite loop in test
         mock_fix.side_effect = Exception("Stop loop")
-        
+
         with pytest.raises(Exception, match="Stop loop"):
             generator.review({"stories": []}, "intent", "reviewer")
-            
+
         captured = capsys.readouterr()
         assert "Key Issues Found" in captured.out
         assert "Proposed Refactoring Plan" in captured.out
@@ -309,10 +311,10 @@ Let me know if you need anything else.
         """Test _call_llm uses CLI when available."""
         mock_which.return_value = "/usr/bin/claude"
         mock_call_cli.return_value = "CLI result"
-        
+
         generator = LLMStoryGenerator(model="sonnet", use_api=False)
         result = generator._call_llm("prompt")
-        
+
         assert result == "CLI result"
         mock_call_cli.assert_called_once()
         mock_anthropic.assert_not_called()
@@ -324,10 +326,10 @@ Let me know if you need anything else.
         """Test _call_llm falls back to API when CLI is missing."""
         mock_which.return_value = None # CLI missing
         mock_anthropic.return_value = "API result"
-        
+
         generator = LLMStoryGenerator(model="sonnet", use_api=False)
         result = generator._call_llm("prompt")
-        
+
         assert result == "API result"
         mock_anthropic.assert_called_once()
         mock_call_cli.assert_not_called()

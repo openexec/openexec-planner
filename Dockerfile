@@ -48,5 +48,5 @@ WORKDIR /project
 
 USER openexec
 
-ENTRYPOINT ["python", "-m", "openexec_orchestration"]
+ENTRYPOINT ["python", "-m", "openexec_planner"]
 CMD ["--help"]

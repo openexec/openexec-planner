@@ -59,7 +59,7 @@ REVIEW THE STORIES AGAINST THESE CRITERIA:
 
 3. **No Redundancy**: Stories should not overlap. If US-001, US-005, and US-010 all cover "basic setup", they must be merged into one.
 
-4. **Dependency Correctness**: Check the "depends_on" lists. 
+4. **Dependency Correctness**: Check the "depends_on" lists.
    - Foundational stories (Docker, Schema, Shared Types) must be dependencies for feature stories.
    - Sequential tasks within a story must have internal dependencies.
    - Independent stories/tasks should have empty "depends_on" to allow parallelism.
@@ -355,7 +355,7 @@ class LLMStoryGenerator:
                                 agent_text.append(item.get("text", ""))
                     except json.JSONDecodeError:
                         continue
-                
+
                 # Use the last agent message found
                 if agent_text:
                     return self._clean_output(agent_text[-1])
@@ -373,7 +373,7 @@ class LLMStoryGenerator:
     def _clean_output(self, output: str) -> str:
         """Strip diagnostic messages and tool-call echoes from CLI output.
 
-        This prevents diagnostic lines and tool calls from ending up in 
+        This prevents diagnostic lines and tool calls from ending up in
         the final response, which improves JSON parsing.
         """
         lines = output.split("\n")
@@ -529,7 +529,7 @@ class LLMStoryGenerator:
             # Show refactoring plan
             plan = review_result.get("refactoring_plan", {})
             if plan:
-                print(f"  Proposed Refactoring Plan:")
+                print("  Proposed Refactoring Plan:")
                 print(f"    Goal: {plan.get('goal', 'Align with requirements')}")
                 print()
                 for proposed in plan.get("proposed_stories", []):
@@ -548,7 +548,7 @@ class LLMStoryGenerator:
             # Retain original goals, update stories
             current_data["stories"] = fixed_stories
 
-        print(f"  ! Max iterations reached, returning best effort")
+        print("  ! Max iterations reached, returning best effort")
         return current_data
 
     def _call_llm(self, prompt: str, model: str | None = None) -> str:

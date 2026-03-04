@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from gate import GateResult, GateReport, report_to_dict, run_gate
+from gate import GateReport, GateResult, report_to_dict, run_gate
 
 
 def test_gate_result_creation() -> None:

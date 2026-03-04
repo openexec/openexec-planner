@@ -2,7 +2,9 @@
 
 import os
 from pathlib import Path
+
 import pytest
+
 from openexec_planner.utils import safe_resolve_path
 
 

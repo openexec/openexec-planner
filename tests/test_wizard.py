@@ -1,17 +1,16 @@
 """Tests for intent wizard."""
 
-import json
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import MagicMock, patch
+
 from openexec_planner.wizard import (
-    IntentWizard, 
-    IntentState, 
-    ProjectFlow, 
     AppType,
-    Platform,
-    Goal,
     Constraint,
-    Entity
+    Entity,
+    Goal,
+    IntentState,
+    IntentWizard,
+    Platform,
+    ProjectFlow,
 )
 
 
@@ -24,7 +23,7 @@ class TestIntentWizard:
         # Setup mock
         mock_gen = MagicMock()
         mock_gen_class.return_value = mock_gen
-        
+
         # Mock response from LLM
         mock_response = {
             "updated_state": {
@@ -38,10 +37,10 @@ class TestIntentWizard:
         }
         mock_gen._call_llm.return_value = "raw response"
         mock_gen._extract_json_from_response.return_value = mock_response
-        
+
         wizard = IntentWizard()
         response = wizard.process_message("I want to build a web app")
-        
+
         assert response.updated_state.project_name == "Test App"
         assert response.updated_state.flow == ProjectFlow.GREENFIELD
         assert response.next_question == "What are your primary goals?"
@@ -51,18 +50,18 @@ class TestIntentWizard:
         """Test the is_ready logic for different configurations."""
         state = IntentState()
         assert not state.is_ready()
-        
+
         # Partially fill
         state.flow = ProjectFlow.GREENFIELD
         state.app_type = AppType.WEB
         state.problem_statement = "Test problem"
         assert not state.is_ready() # Missing goals, constraints, entities
-        
+
         # Add goals and constraints
         state.primary_goals = [Goal(id="G1", description="Test goal")]
         state.constraints = [Constraint(id="C1", description="Test constraint")]
         assert not state.is_ready() # Missing entities
-        
+
         # Add entity with data source
         state.entities = [Entity(name="User", data_source="Postgres")]
         assert state.is_ready()
@@ -86,7 +85,7 @@ class TestIntentWizard:
         wizard.state.project_name = "Markdown Test"
         wizard.state.problem_statement = "A test for rendering"
         wizard.state.primary_goals = [Goal(id="G1", description="Test Goal")]
-        
+
         md = wizard.render_intent_md()
         assert "# Intent: Markdown Test" in md
         assert "A test for rendering" in md
@@ -97,9 +96,9 @@ class TestIntentWizard:
         # Create a dummy file
         test_file = tmp_path / "context.py"
         test_file.write_text("print('hello')")
-        
+
         wizard = IntentWizard()
-        
+
         # We need to be in the same dir for safe_resolve_path to work if we use relative paths
         with patch("os.getcwd", return_value=str(tmp_path)):
             files = wizard._scan_for_files(f"Check out {test_file.name}")

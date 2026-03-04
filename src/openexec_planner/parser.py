@@ -1,7 +1,6 @@
 """Intent document parsing."""
 
 import re
-import os
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +31,7 @@ class IntentParser:
 
         Args:
             path: Path to the intent document (markdown or text)
-            base_dir: Optional base directory for security validation. 
+            base_dir: Optional base directory for security validation.
                      If None, path is read directly.
 
         Returns:

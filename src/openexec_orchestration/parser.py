@@ -1,8 +1,11 @@
 """Intent document parsing."""
 
 import re
+import os
 from pathlib import Path
 from typing import Any
+
+from .utils import safe_resolve_path
 
 
 class IntentParser:
@@ -24,17 +27,23 @@ class IntentParser:
         r"\*\*(?:Constraints?|Limitations?)\*\*[:\s]*([\s\S]*?)(?=\n\*\*|\n#+|\Z)",
     ]
 
-    def parse(self, path: str | Path) -> dict[str, Any]:
+    def parse(self, path: str | Path, base_dir: str | Path | None = None) -> dict[str, Any]:
         """Parse an intent document.
 
         Args:
             path: Path to the intent document (markdown or text)
+            base_dir: Optional base directory for security validation. 
+                     If None, path is read directly.
 
         Returns:
             Structured intent data with goals, requirements, and constraints
         """
-        path = Path(path)
-        content = path.read_text()
+        # Security: Prevent path traversal if base_dir is provided
+        if base_dir:
+            safe_path = safe_resolve_path(base_dir, path)
+            content = safe_path.read_text()
+        else:
+            content = Path(path).read_text()
 
         return {
             "title": self._extract_title(content),
@@ -111,14 +120,15 @@ class IntentParser:
         return items
 
 
-def parse_intent(path: str | Path) -> dict[str, Any]:
+def parse_intent(path: str | Path, base_dir: str | Path | None = None) -> dict[str, Any]:
     """Convenience function to parse an intent document.
 
     Args:
         path: Path to the intent document
+        base_dir: Optional base directory for security validation
 
     Returns:
         Structured intent data
     """
     parser = IntentParser()
-    return parser.parse(path)
+    return parser.parse(path, base_dir=base_dir)

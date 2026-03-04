@@ -5,10 +5,14 @@ requirements and constraints before project execution.
 """
 
 import json
+import os
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+
+from .utils import safe_resolve_path
 
 
 class ProjectFlow(str, Enum):
@@ -237,9 +241,6 @@ class IntentWizard:
 
     def _scan_for_files(self, message: str) -> Dict[str, str]:
         """Scan message for potential file paths and read their content."""
-        import os
-        from pathlib import Path
-        
         # Simple heuristic for file paths
         # Look for words containing / or .md, .py, .txt etc.
         words = message.split()
@@ -250,11 +251,12 @@ class IntentWizard:
             clean_word = word.strip(".,!?;:\"'")
             if "/" in clean_word or "." in clean_word:
                 try:
-                    p = Path(clean_word)
-                    if p.is_file():
+                    # Security: Prevent reading files outside workspace
+                    safe_path = safe_resolve_path(os.getcwd(), clean_word)
+                    if safe_path.is_file():
                         # Don't read huge files
-                        if p.stat().st_size < 100 * 1024: # 100KB limit
-                            files[clean_word] = p.read_text(errors="ignore")
+                        if safe_path.stat().st_size < 100 * 1024: # 100KB limit
+                            files[clean_word] = safe_path.read_text(errors="ignore")
                 except Exception:
                     continue
         return files

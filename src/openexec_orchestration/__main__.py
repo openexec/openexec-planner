@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from .generator import StoryGenerator
 from .llm_generator import LLMStoryGenerator
 from .goal_tree import GoalTreeBuilder
 from .scheduler import Scheduler
+from .utils import safe_resolve_path
 
 
 def main() -> int:
@@ -144,12 +146,19 @@ def cmd_wizard(args: argparse.Namespace) -> int:
 
 def cmd_parse(args: argparse.Namespace) -> int:
     """Handle parse command."""
-    if not args.file.exists():
+    # Security: Prevent path traversal
+    try:
+        safe_path = safe_resolve_path(os.getcwd(), args.file)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    if not safe_path.exists():
         print(f"Error: File not found: {args.file}", file=sys.stderr)
         return 1
 
     parser = IntentParser()
-    result = parser.parse(args.file)
+    result = parser.parse(safe_path, base_dir=os.getcwd())
 
     if args.format == "json":
         # Remove raw_content for cleaner output
@@ -175,7 +184,14 @@ def cmd_parse(args: argparse.Namespace) -> int:
 
 def cmd_generate(args: argparse.Namespace) -> int:
     """Handle generate command."""
-    if not args.file.exists():
+    # Security: Prevent path traversal
+    try:
+        safe_path = safe_resolve_path(os.getcwd(), args.file)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    if not safe_path.exists():
         print(f"Error: File not found: {args.file}", file=sys.stderr)
         return 1
 
@@ -206,7 +222,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
             print(f"  CLI '{reviewer_cli}' not found, will try API")
 
     # Read raw intent content
-    intent_content = args.file.read_text()
+    intent_content = safe_path.read_text()
 
     # Use LLM-based generator for better quality stories
     try:
@@ -227,7 +243,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         print("Install with: pip install anthropic openai google-generativeai", file=sys.stderr)
         print("Falling back to rule-based generation...", file=sys.stderr)
         parser = IntentParser()
-        intent = parser.parse(args.file)
+        intent = parser.parse(safe_path, base_dir=os.getcwd())
         fallback_generator = StoryGenerator()
         result_data = {"schema_version": "1.0", "goals": [], "stories": fallback_generator.generate(intent)}
     except ValueError as e:
@@ -240,7 +256,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
             print(f"Error: {error_msg[:500]}", file=sys.stderr)
         print("Falling back to rule-based generation...", file=sys.stderr)
         parser = IntentParser()
-        intent = parser.parse(args.file)
+        intent = parser.parse(safe_path, base_dir=os.getcwd())
         fallback_generator = StoryGenerator()
         result_data = {"schema_version": "1.0", "goals": [], "stories": fallback_generator.generate(intent)}
     except KeyError as e:
@@ -251,16 +267,15 @@ def cmd_generate(args: argparse.Namespace) -> int:
         print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
         print("Falling back to rule-based generation...", file=sys.stderr)
         parser = IntentParser()
-        intent = parser.parse(args.file)
+        intent = parser.parse(safe_path, base_dir=os.getcwd())
         fallback_generator = StoryGenerator()
         result_data = {"schema_version": "1.0", "goals": [], "stories": fallback_generator.generate(intent)}
     except Exception as e:
         import traceback
         print(f"Warning: LLM generation failed ({type(e).__name__}: {e})", file=sys.stderr)
-        print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
         print("Falling back to rule-based generation...", file=sys.stderr)
         parser = IntentParser()
-        intent = parser.parse(args.file)
+        intent = parser.parse(safe_path, base_dir=os.getcwd())
         fallback_generator = StoryGenerator()
         result_data = {"schema_version": "1.0", "goals": [], "stories": fallback_generator.generate(intent)}
 

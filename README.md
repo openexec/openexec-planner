@@ -228,8 +228,6 @@ mypy src/
 
 - [openexec](https://github.com/openexec/openexec) — Unified Go Execution Engine, Server, and Web Dashboard
 - [openexec.io](https://openexec.io) — Official Website and Documentation
-- [Hyper Engineering Axon](https://github.com/hyperengineering/axon) — High-performance agent execution primitives
-- [Hyper Engineering Tract](https://github.com/hyperengineering/tract) — System-wide state tracking engine
 
 ## License
 

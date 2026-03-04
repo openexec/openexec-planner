@@ -7,12 +7,22 @@ name = "openexec-planner"
 version = "0.1.0"
 description = "AI Project Planning Engine - From Intent to Executable Task DAGs"
 readme = "README.md"
-license = {text = "MIT"}
+license = {file = "LICENSE"}
 requires-python = ">=3.11"
 authors = [
     {name = "OpenExec Team", email = "hello@openexec.ai"}
 ]
-keywords = ["ai", "agents", "planner", "llm", "planning", "automation", "dag"]
+keywords = [
+    "ai", 
+    "agents", 
+    "planner", 
+    "llm", 
+    "planning", 
+    "automation", 
+    "dag", 
+    "software-engineering", 
+    "task-orchestration"
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -53,8 +63,15 @@ all = [
 [project.scripts]
 openexec-planner = "openexec_planner.__main__:main"
 
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["openexec_planner*"]
+
+[tool.setuptools.package-data]
+"openexec_planner" = ["*.j2", "*.json", "*.md"]
 
 [tool.ruff]
 line-length = 88

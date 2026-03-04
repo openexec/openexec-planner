@@ -34,7 +34,7 @@ jobs:
       run: mypy src/
       
     - name: Run tests with pytest
-      run: pytest --cov=openexec_planner --cov-report=xml
+      run: PYTHONPATH=src pytest --cov=openexec_planner --cov-report=xml
       
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

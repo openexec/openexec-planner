@@ -62,6 +62,22 @@ class TestCLI:
             captured = capsys.readouterr()
             assert "tasks" in captured.out
 
+    def test_init_command(self, tmp_path):
+        """Test the init command."""
+        with patch("sys.argv", ["openexec-planner", "init", "--name", "test-project", "--model", "opus"]):
+            with patch("os.getcwd", return_value=str(tmp_path)):
+                # We need to simulate change dir or absolute paths in cmd_init
+                # For this test, let's patch Path(".") to point to tmp_path
+                from pathlib import Path as PathLibPath
+                with patch("openexec_planner.__main__.Path", side_effect=lambda x: PathLibPath(tmp_path) if x == "." else PathLibPath(tmp_path) / x):
+                    result = main()
+                    assert result == 0
+                    assert (tmp_path / ".openexec" / "data").exists()
+                    assert (tmp_path / "openexec.yaml").exists()
+                    yaml_content = (tmp_path / "openexec.yaml").read_text()
+                    assert 'name: "test-project"' in yaml_content
+                    assert 'planner_model: "opus"' in yaml_content
+
     @patch("openexec_planner.wizard.IntentWizard")
     def test_wizard_command(self, mock_wizard_class, capsys):
         """Test the wizard command (single turn)."""

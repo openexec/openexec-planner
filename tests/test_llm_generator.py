@@ -63,7 +63,7 @@ Let me know if you need anything else.
 
         assert data["stories"][0]["id"] == "US-001"
 
-    @patch.object(LLMStoryGenerator, "_call_llm")
+    @patch("openexec_planner.llm_generator.LLMStoryGenerator._call_llm")
     def test_generate_workflow(self, mock_call):
         """Test full generation workflow with mock LLM."""
         mock_response = json.dumps({
@@ -71,7 +71,7 @@ Let me know if you need anything else.
                 {"id": "US-001", "title": "Test", "tasks": []}
             ]
         })
-        mock_call.return_value = mock_response
+        mock_call.return_value = f"```json\n{mock_response}\n```"
 
         generator = LLMStoryGenerator()
         # Intent content must be string, not path, to avoid parse errors in this test

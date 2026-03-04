@@ -1,4 +1,4 @@
-"""OpenExec Orchestration CLI entrypoint."""
+"""OpenExec Planner CLI entrypoint."""
 
 import argparse
 import json
@@ -18,10 +18,15 @@ def main() -> int:
     """Main entry point for CLI."""
     parser = argparse.ArgumentParser(
         prog="openexec-planner",
-        description="OpenExec Orchestration - AI Planning Engine",
+        description="OpenExec Planner - AI Planning Engine",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # init command
+    init_parser = subparsers.add_parser("init", help="Initialize a new OpenExec project structure")
+    init_parser.add_argument("--name", "-n", help="Project name")
+    init_parser.add_argument("--model", "-m", default="sonnet", help="Default model to use (sonnet, opus, gpt-5.3, etc.)")
 
     # parse command
     parse_parser = subparsers.add_parser("parse", help="Parse an intent document")
@@ -46,7 +51,7 @@ def main() -> int:
         "--model",
         "-m",
         default="sonnet",
-        help="Model to use for generation (opus, sonnet, haiku, gpt-5, gemini-3.1-pro-preview)",
+        help="Model to use for generation (opus, sonnet, haiku, gpt-5.3, gemini-3.1-pro-preview)",
     )
     gen_parser.add_argument(
         "--reviewer",
@@ -79,7 +84,7 @@ def main() -> int:
 
     # wizard command
     wizard_parser = subparsers.add_parser("wizard", help="Interactive intent gathering")
-    wizard_parser.add_argument("--message", "-m", help="User message")
+    wizard_parser.add_argument("--message", "-m", help="User message (for single-turn / API usage)")
     wizard_parser.add_argument("--state", "-s", help="Current state as JSON string")
     wizard_parser.add_argument("--state-file", type=Path, help="Path to state JSON file")
     wizard_parser.add_argument("--model", default="sonnet", help="Model to use")
@@ -111,6 +116,76 @@ def main() -> int:
     if args.command == "wizard":
         return cmd_wizard(args)
 
+    if args.command == "init":
+        return cmd_init(args)
+
+    return 0
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    """Handle init command."""
+    project_root = Path(".")
+    ox_dir = project_root / ".openexec"
+    data_dir = ox_dir / "data"
+    
+    name = args.name
+    model = args.model
+
+    print(f"\n🚀 Initializing OpenExec project in {project_root.absolute()}")
+    
+    # Interactive fallback if flags not provided
+    if not name:
+        try:
+            default_name = project_root.resolve().name
+            name = input(f"Enter project name [{default_name}]: ").strip() or default_name
+        except (EOFError, KeyboardInterrupt):
+            print("\nAborted.")
+            return 1
+
+    if not model or model == "sonnet": # prompt even if default 'sonnet' is set but not explicitly passed
+        try:
+            print("\nAvailable models:")
+            print("  - sonnet (Claude 4.6 Sonnet - Default)")
+            print("  - opus   (Claude 4.6 Opus)")
+            print("  - haiku  (Claude 4.6 Haiku)")
+            print("  - gpt-5.3 (Codex)")
+            print("  - gemini-3.1-pro-preview")
+            
+            choice = input(f"Choose default model [{model or 'sonnet'}]: ").strip()
+            if choice:
+                model = choice
+        except (EOFError, KeyboardInterrupt):
+            print("\nAborted.")
+            return 1
+
+    # Create directories
+    ox_dir.mkdir(exist_ok=True)
+    data_dir.mkdir(exist_ok=True)
+    
+    # Create default openexec.yaml if missing
+    yaml_path = project_root / "openexec.yaml"
+    if not yaml_path.exists():
+        yaml_content = f"""project:
+  name: "{name}"
+  type: "generic"
+  version: "0.1.0"
+
+execution:
+  planner_model: "{model}"
+  executor_model: "{model}"
+  review_enabled: true
+"""
+        yaml_path.write_text(yaml_content)
+        print(f"  + Created {yaml_path}")
+    else:
+        print(f"  ! {yaml_path} already exists, skipping...")
+    
+    print(f"  + Created {ox_dir}")
+    print(f"  + Created {data_dir}")
+    print(f"\n✅ Project '{name}' initialized with {model}!")
+    print("\nNext steps:")
+    print("  1. Create an INTENT.md or run 'openexec-planner wizard'")
+    print("  2. Run 'openexec-planner generate INTENT.md'")
     return 0
 
 
@@ -130,17 +205,48 @@ def cmd_wizard(args: argparse.Namespace) -> int:
         print(wizard.render_intent_md())
         return 0
 
-    if not args.message:
-        print("Error: --message required for wizard interaction", file=sys.stderr)
-        return 1
+    # If message is provided, it's a single turn (API mode)
+    if args.message:
+        result = wizard.process_message(args.message)
+        # If a state file was provided, update it
+        if args.state_file:
+            args.state_file.write_text(wizard.state.model_dump_json(indent=2))
+        print(result.model_dump_json(indent=2))
+        return 0
 
-    result = wizard.process_message(args.message)
+    # CLI INTERACTIVE MODE
+    print("\n=== OpenExec Intent Wizard ===")
+    print("Type 'exit' or 'quit' to stop. Type 'done' to force finish.")
+    print("Tell me about your project:")
+    
+    try:
+        current_msg = input("\n> ")
+        while current_msg.lower() not in ["exit", "quit"]:
+            if current_msg.lower() == "done" and wizard.state.is_ready():
+                break
+                
+            print("\nThinking...")
+            resp = wizard.process_message(current_msg)
+            
+            if resp.acknowledgement:
+                print(f"\n🤖 {resp.acknowledgement}")
+                
+            if resp.is_complete:
+                print("\n✅ Intent is complete!")
+                break
+                
+            print(f"\n? {resp.next_question}")
+            current_msg = input("\n> ")
 
-    # If a state file was provided, update it
-    if args.state_file:
-        args.state_file.write_text(wizard.state.model_dump_json(indent=2))
-
-    print(result.model_dump_json(indent=2))
+        # Final step: render intent.md
+        intent_md = wizard.render_intent_md()
+        Path("INTENT.md").write_text(intent_md)
+        print("\n✔ Project intent saved to INTENT.md")
+    except EOFError:
+        print("\nInterrupted.")
+    except KeyboardInterrupt:
+        print("\nInterrupted.")
+        
     return 0
 
 
@@ -201,7 +307,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
     # Detect CLI availability
     import shutil
     cli_commands = {"opus": "claude", "sonnet": "claude", "haiku": "claude",
-                    "gpt-5": "codex", "gpt-5-codex": "codex",
+                    "gpt-5.3-codex": "codex", "gpt-5.3": "codex",
                     "gemini-3.1-pro-preview": "gemini", "gemini-3.1-flash-preview": "gemini"}
     executor_cli = cli_commands.get(model, "claude")
     executor_cli_available = shutil.which(executor_cli) is not None
@@ -281,6 +387,8 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
     output = json.dumps(result_data, indent=2)
     if args.output:
+        # Ensure directory exists
+        args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(output)
         print(f"Stories written to {args.output}")
     else:
@@ -303,6 +411,8 @@ def cmd_build_tree(args: argparse.Namespace) -> int:
 
     output = json.dumps(tree, indent=2)
     if args.output:
+        # Ensure directory exists
+        args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(output)
         print(f"Goal tree written to {args.output}")
     else:
@@ -331,6 +441,8 @@ def cmd_schedule(args: argparse.Namespace) -> int:
 
     output = json.dumps(schedule, indent=2)
     if args.output:
+        # Ensure directory exists
+        args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(output)
         print(f"Schedule written to {args.output}")
     else:

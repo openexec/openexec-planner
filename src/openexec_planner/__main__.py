@@ -127,12 +127,12 @@ def cmd_init(args: argparse.Namespace) -> int:
     project_root = Path(".")
     ox_dir = project_root / ".openexec"
     data_dir = ox_dir / "data"
-    
+
     name = args.name
     model = args.model
 
     print(f"\n🚀 Initializing OpenExec project in {project_root.absolute()}")
-    
+
     # Interactive fallback if flags not provided
     if not name:
         try:
@@ -150,7 +150,7 @@ def cmd_init(args: argparse.Namespace) -> int:
             print("  - haiku  (Claude 4.6 Haiku)")
             print("  - gpt-5.3 (Codex)")
             print("  - gemini-3.1-pro-preview")
-            
+
             choice = input(f"Choose default model [{model or 'sonnet'}]: ").strip()
             if choice:
                 model = choice
@@ -161,7 +161,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     # Create directories
     ox_dir.mkdir(exist_ok=True)
     data_dir.mkdir(exist_ok=True)
-    
+
     # Create default openexec.yaml if missing
     yaml_path = project_root / "openexec.yaml"
     if not yaml_path.exists():
@@ -179,7 +179,7 @@ execution:
         print(f"  + Created {yaml_path}")
     else:
         print(f"  ! {yaml_path} already exists, skipping...")
-    
+
     print(f"  + Created {ox_dir}")
     print(f"  + Created {data_dir}")
     print(f"\n✅ Project '{name}' initialized with {model}!")
@@ -218,23 +218,23 @@ def cmd_wizard(args: argparse.Namespace) -> int:
     print("\n=== OpenExec Intent Wizard ===")
     print("Type 'exit' or 'quit' to stop. Type 'done' to force finish.")
     print("Tell me about your project:")
-    
+
     try:
         current_msg = input("\n> ")
         while current_msg.lower() not in ["exit", "quit"]:
             if current_msg.lower() == "done" and wizard.state.is_ready():
                 break
-                
+
             print("\nThinking...")
             resp = wizard.process_message(current_msg)
-            
+
             if resp.acknowledgement:
                 print(f"\n🤖 {resp.acknowledgement}")
-                
+
             if resp.is_complete:
                 print("\n✅ Intent is complete!")
                 break
-                
+
             print(f"\n? {resp.next_question}")
             current_msg = input("\n> ")
 
@@ -246,7 +246,7 @@ def cmd_wizard(args: argparse.Namespace) -> int:
         print("\nInterrupted.")
     except KeyboardInterrupt:
         print("\nInterrupted.")
-        
+
     return 0
 
 

@@ -1,6 +1,6 @@
 """OpenExec Orchestration - AI Planning Engine."""
 
-__version__ = "0.1.9"
+__version__ = "0.1.10"
 
 from .generator import Story, StoryGenerator
 from .goal_tree import GoalNode, GoalTree, GoalTreeBuilder

@@ -294,7 +294,64 @@ class LLMStoryGenerator:
         """
         prompt = STORY_GENERATION_PROMPT.format(intent=intent_content)
         response = self._call_llm(prompt)
-        return self._parse_response(response)
+        result = self._parse_response(response)
+
+        # Validate structure and self-heal if necessary
+        errors = self.validate_stories(result)
+        if errors:
+            print(f"  ! Generated JSON has {len(errors)} validation errors. Attempting self-healing...")
+            for err in errors:
+                print(f"    - {err}")
+            
+            # Trigger a fix turn
+            result["stories"] = self._fix_stories(result.get("stories", []), intent_content, {"approved": False, "key_issues": [{"category": "Validation", "description": e} for e in errors]})
+            
+            # Final validation check
+            final_errors = self.validate_stories(result)
+            if final_errors:
+                print(f"  ! Warning: Self-healing could not resolve all issues: {final_errors[0]}")
+
+        return result
+
+    def validate_stories(self, data: dict[str, Any]) -> list[str]:
+        """Validate the internal structure of generated stories and tasks.
+        
+        Returns a list of error messages, or empty list if valid.
+        """
+        errors = []
+        if not isinstance(data, dict):
+            return ["Root must be a JSON object"]
+            
+        stories = data.get("stories", [])
+        if not isinstance(stories, list):
+            return ["'stories' must be a JSON array"]
+
+        for i, story in enumerate(stories):
+            story_id = story.get("id", f"Index {i}")
+            
+            # Check story required fields
+            for field in ["id", "title", "tasks"]:
+                if field not in story:
+                    errors.append(f"Story {story_id} is missing required field '{field}'")
+
+            # Validate tasks block by block
+            tasks = story.get("tasks", [])
+            if not isinstance(tasks, list):
+                errors.append(f"Story {story_id} has invalid 'tasks' field (not an array)")
+                continue
+
+            for j, task in enumerate(tasks):
+                task_id = task.get("id") if isinstance(task, dict) else f"Task {j}"
+                if not isinstance(task, dict):
+                    errors.append(f"Story {story_id}, task {j} is not a JSON object")
+                    continue
+                
+                # Check task required fields
+                for field in ["id", "title", "technical_strategy", "verification_script"]:
+                    if field not in task or not task[field]:
+                        errors.append(f"Task {task_id} in story {story_id} is missing or has empty '{field}'")
+        
+        return errors
 
     def _call_cli(self, prompt: str) -> str:
         """Call LLM via CLI command (claude, codex, or gemini).

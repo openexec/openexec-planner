@@ -165,9 +165,11 @@ RULES:
 6. DATA LOCALITY: For every core entity, determine its source of truth (e.g., Local Database, External API like Supabase, Third-party service).
 7. VALIDATE: Identify facts that the user stated (Explicit) vs what you are inferring (Assumed).
 8. ONE QUESTION: Ask exactly ONE high-leverage question at a time to minimize user fatigue.
-9. CONTRACTS: For Refactoring, prioritize mapping existing API/DB contracts and dependencies.
-10. OUTPUT ONLY JSON: Respond with a single JSON object matching the WizardResponse schema. No markdown outside the JSON.
-11. COMPLETION: If all required fields are filled and the user indicates they are ready or happy, set "is_complete": true.
+9. TECHNICAL AUTONOMY: Early in the interview, ask if the user wants to make specific technical/architectural decisions (e.g., choice of database, framework) or if they prefer you to decide on their behalf based on best practices. 
+10. ACCESSIBILITY: If the user seems non-technical, explain choices in plain English or make sensible defaults (Assumptions) and ask for confirmation rather than asking them to choose from a list of technologies.
+11. CONTRACTS: For Refactoring, prioritize mapping existing API/DB contracts and dependencies.
+12. OUTPUT ONLY JSON: Respond with a single JSON object matching the WizardResponse schema. DO NOT include any conversational text, markdown preamble, or explanations outside the JSON.
+13. COMPLETION: If all required fields are filled and the user indicates they are ready or happy, set "is_complete": true.
 
 SCHEMA DEFINITION:
 - flow: "greenfield", "refactor", or "unknown"
@@ -225,7 +227,10 @@ class IntentWizard:
             WizardResponse containing updated state and next question
         """
         # Sanitize input: trim whitespace and normalize newlines
-        clean_msg = message.strip()
+        # Remove non-printable characters and extra whitespace
+        clean_msg = "".join(char for char in message if char.isprintable() or char in "\n\r\t")
+        clean_msg = clean_msg.strip()
+        
         if not clean_msg:
             return WizardResponse(
                 updated_state=self.state,
@@ -247,41 +252,56 @@ class IntentWizard:
             + f"\n\nCurrent Intent State:\n{self.state.model_dump_json(indent=2)}\n\nUser Message: {enhanced_message}"
         )
 
-        # Use LLM generator to process the prompt
-        response_text = self.generator._call_llm(prompt)
+        # Retry loop for self-healing JSON responses
+        max_retries = 2
+        last_error = ""
+        
+        for attempt in range(max_retries + 1):
+            if attempt > 0:
+                # Add a correction instruction if this is a retry
+                correction_prompt = f"{prompt}\n\n⚠️ PREVIOUS ATTEMPT FAILED TO PARSE AS JSON: {last_error}\nSTRICT REQUIREMENT: You MUST respond ONLY with a valid JSON object matching the schema. No conversational text."
+                response_text = self.generator._call_llm(correction_prompt)
+            else:
+                response_text = self.generator._call_llm(prompt)
 
-        # Parse response using the generator's JSON extraction
-        try:
-            data = self.generator._extract_json_from_response(response_text, expect_array=False)
+            try:
+                # Parse response using the generator's JSON extraction
+                data = self.generator._extract_json_from_response(response_text, expect_array=False)
 
-            # Update local state
-            result = WizardResponse.model_validate(data)
-            self.state = result.updated_state
+                # Update local state
+                result = WizardResponse.model_validate(data)
+                self.state = result.updated_state
 
-            # Check if actually complete based on schema rules
-            if self.state.is_ready():
-                result.is_complete = True
+                # Check if actually complete based on schema rules
+                if self.state.is_ready():
+                    result.is_complete = True
 
-            return result
-        except (ValueError, Exception) as e:
-            # SAFETY FALLBACK: If state is already ready and LLM returned text, just finish
-            if self.state.is_ready():
-                return WizardResponse(
-                    updated_state=self.state,
-                    next_question="Intent is ready.",
-                    acknowledgement="Proceeding with finalized intent.",
-                    is_complete=True,
-                )
+                return result
+            except (ValueError, Exception) as e:
+                last_error = str(e)
+                # If we're out of retries, try the safety fallback or return error
+                if attempt == max_retries:
+                    # SAFETY FALLBACK: If state is already ready and LLM returned text, just finish
+                    if self.state.is_ready():
+                        return WizardResponse(
+                            updated_state=self.state,
+                            next_question="Intent is ready.",
+                            acknowledgement="Proceeding with finalized intent.",
+                            is_complete=True,
+                        )
 
-            # If parsing fails, don't crash. Return a retry question.
-            return WizardResponse(
-                updated_state=self.state,
-                next_question="I had trouble processing that response. Could you please rephrase or provide more detail?",
-                acknowledgement=f"Error parsing AI response: {str(e)[:100]}...",
-                is_complete=False,
-                new_facts=[],
-                new_assumptions=[],
-            )
+                    # Return a retry question to the user
+                    return WizardResponse(
+                        updated_state=self.state,
+                        next_question="I had trouble processing that response. Could you please rephrase or provide more detail?",
+                        acknowledgement=f"Error parsing AI response: {str(e)[:100]}...",
+                        is_complete=False,
+                        new_facts=[],
+                        new_assumptions=[],
+                    )
+        
+        # Should not be reachable
+        return WizardResponse(updated_state=self.state, next_question="...")
 
     def _scan_for_files(self, message: str) -> dict[str, str]:
         """Scan message for potential file paths and read their content."""

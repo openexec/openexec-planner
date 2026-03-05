@@ -47,32 +47,45 @@ GEMINI_MODELS = {
     "gemini-3.1-flash-preview": "gemini-3.1-flash-preview",
 }
 
-STORY_REVIEW_PROMPT = """You are a senior software architect reviewing generated user stories for implementation readiness.
+STORY_REVIEW_PROMPT = """You are a senior software architect reviewing generated user stories for 
+implementation readiness.
 
-Your goal is to ensure the stories are SUFFICIENT FOR IMPLEMENTATION and have correct dependency modeling for parallel execution.
+Your goal is to ensure the stories are SUFFICIENT FOR IMPLEMENTATION and have correct 
+dependency modeling for parallel execution.
 
 REVIEW THE STORIES AGAINST THESE CRITERIA:
 
-1. **Requirement Coverage**: Each REQ-XXX in the intent must map to exactly ONE story. No requirements should be missing or buried.
+1. **Requirement Coverage**: Each REQ-XXX in the intent must map to exactly ONE story. 
+   No requirements should be missing or buried.
 
-2. **Goal Convergence**: Every story must link to a Goal ID. Most importantly, do these stories collectively ACHIEVE the goals defined in the intent? If a goal (e.g., G-001) has no stories that directly satisfy its success criteria, reject the plan.
+2. **Goal Convergence**: Every story must link to a Goal ID. Most importantly, do 
+   these stories collectively ACHIEVE the goals defined in the intent? If a goal 
+   (e.g., G-001) has no stories that directly satisfy its success criteria, 
+   reject the plan.
 
-3. **No Redundancy**: Stories should not overlap. If US-001, US-005, and US-010 all cover "basic setup", they must be merged into one.
+3. **No Redundancy**: Stories should not overlap. If US-001, US-005, and US-010 all 
+   cover "basic setup", they must be merged into one.
 
-4. **Dependency Correctness**: Check the "depends_on" lists.
-   - Foundational stories (Docker, Schema, Shared Types) must be dependencies for feature stories.
+4. **Dependency Correctness**: Check the "depends_on" lists. 
+   - Foundational stories (Docker, Schema, Shared Types) must be dependencies 
+     for feature stories.
    - Sequential tasks within a story must have internal dependencies.
    - Independent stories/tasks should have empty "depends_on" to allow parallelism.
 
 5. **Quality & Correctness**: No parsing errors, hallucinations, or corrupted titles.
 
-6. **Acceptance Criteria**: Must be extracted from the intent document, not null or generic. These define "done".
+6. **Acceptance Criteria**: Must be extracted from the intent document, not null or 
+   generic. These define "done".
 
 7. **Specific Tasks**: Tasks must be technical and actionable.
 
-8. **Test Coverage**: Implementation stories MUST include tasks specifically for comprehensive unit testing (>90% coverage) and, where applicable, End-to-End (E2E) testing. Reject plans that lack rigorous verification steps.
+8. **Test Coverage**: Implementation stories MUST include tasks specifically for 
+   comprehensive unit testing (>90% coverage) and, where applicable, 
+   End-to-End (E2E) testing. Reject plans that lack rigorous verification steps.
 
-9. **ISO-Compliant Workflow**: Confirm the plan supports Story-Level validation. Every implementation story must have a final task or acceptance criterion that summarizes the verification evidence for the entire feature set.
+9. **ISO-Compliant Workflow**: Confirm the plan supports Story-Level validation. 
+   Every implementation story must have a final task or acceptance criterion that 
+   summarizes the verification evidence for the entire feature set.
 
 ORIGINAL INTENT:
 {intent}
@@ -187,7 +200,7 @@ RULES:
     - Task-Tier (Verification): Autonomous verification via scripts (Evidence is logged in audit.db).
     - Story-Tier (Validation): Once all tasks in a story are verified, a final 'Validation Review' MUST be performed to ensure the integrated feature satisfies the acceptance criteria and Goal ID.
 17. Task IDs should follow format: T-US-XXX-YYY where XXX is story number, YYY is task number.
-10. Avoid redundancy - do not create multiple stories for the same functionality.
+18. Avoid redundancy - do not create multiple stories for the same functionality.
 
 OUTPUT FORMAT (JSON object):
 {{
@@ -280,26 +293,7 @@ class LLMStoryGenerator:
             Dictionary containing goals and stories
         """
         prompt = STORY_GENERATION_PROMPT.format(intent=intent_content)
-
-        # Try CLI first (default), fall back to API if CLI not available
-        if not self.use_api:
-            cli_path = shutil.which(self.cli_command)
-            if cli_path:
-                response = self._call_cli(prompt)
-                return self._parse_response(response)
-            else:
-                print(f"CLI '{self.cli_command}' not found, trying API...")
-
-        # API mode
-        if self.provider == "anthropic":
-            response = self._call_anthropic(prompt)
-        elif self.provider == "openai":
-            response = self._call_openai(prompt)
-        elif self.provider == "google":
-            response = self._call_google(prompt)
-        else:
-            raise ValueError(f"Unknown provider: {self.provider}")
-
+        response = self._call_llm(prompt)
         return self._parse_response(response)
 
     def _call_cli(self, prompt: str) -> str:
@@ -616,28 +610,17 @@ class LLMStoryGenerator:
         """Extract JSON data from agent response.
 
         Handles potential markdown code blocks and extracts JSON.
-        This is the proven pattern from the initial project.
-
-        Args:
-            response: The raw agent response text.
-            expect_array: If True, look for array first, then object.
-
-        Returns:
-            Parsed JSON data.
-
-        Raises:
-            ValueError: If response cannot be parsed as valid JSON.
         """
-        # Try to find JSON in markdown code blocks first
+        # Strategy 1: Look for markdown code blocks
         json_block_pattern = r"```(?:json)?\s*\n?([\s\S]*?)\n?```"
         matches = re.findall(json_block_pattern, response)
 
-        json_text = response
+        json_text = ""
         if matches:
             # Use the first JSON block found
             json_text = matches[0]
         else:
-            # Try to extract JSON object or array directly
+            # Strategy 2: Look for JSON object or array directly
             json_object_pattern = r"\{[\s\S]*\}"
             json_array_pattern = r"\[[\s\S]*\]"
 
@@ -646,13 +629,11 @@ class LLMStoryGenerator:
 
             # Prioritize based on expect_array parameter
             if expect_array:
-                # Look for array first
                 if arr_match:
                     json_text = arr_match.group(0)
                 elif obj_match:
                     json_text = obj_match.group(0)
             else:
-                # Look for object first
                 if obj_match and arr_match:
                     if obj_match.start() < arr_match.start():
                         json_text = obj_match.group(0)
@@ -662,6 +643,9 @@ class LLMStoryGenerator:
                     json_text = obj_match.group(0)
                 elif arr_match:
                     json_text = arr_match.group(0)
+
+        if not json_text:
+            json_text = response
 
         # Clean the extracted text
         json_text = json_text.strip()
@@ -696,7 +680,7 @@ class LLMStoryGenerator:
                     pass
 
                 raise ValueError(
-                    f"Failed to parse JSON from response: {e}\nText (first 500 chars): {json_text[:500]}"
+                    f"Failed to parse JSON from response: {e}\n" f"Text (first 500 chars): {json_text[:500]}"
                 ) from e
 
     def _parse_review_response(self, response: str) -> dict[str, Any]:

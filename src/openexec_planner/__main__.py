@@ -60,6 +60,11 @@ def main() -> int:
         "-r",
         help="Model to use for reviewing generated stories (enables review step)",
     )
+    gen_parser.add_argument(
+        "--prd-context",
+        type=Path,
+        help="Path to structured PRD context JSON file (from DCP)",
+    )
 
     # build-tree command
     tree_parser = subparsers.add_parser("build-tree", help="Build goal tree from intent")
@@ -340,11 +345,20 @@ def cmd_generate(args: argparse.Namespace) -> int:
     # Read raw intent content
     intent_content = safe_path.read_text()
 
+    # Load PRD context if provided
+    prd_context = None
+    if args.prd_context and args.prd_context.exists():
+        try:
+            prd_context = json.loads(args.prd_context.read_text())
+            print(f"  + Loaded structured PRD context from {args.prd_context}")
+        except Exception as e:
+            print(f"  ! Warning: Failed to parse PRD context: {e}", file=sys.stderr)
+
     # Use LLM-based generator for better quality stories
     try:
         generator = LLMStoryGenerator(model=model)
         print("Generating stories and goals...")
-        result_data = generator.generate(intent_content)
+        result_data = generator.generate(intent_content, prd_context=prd_context)
         stories_count = len(result_data.get("stories", []))
         print(f"Generated {stories_count} stories")
 

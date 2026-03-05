@@ -250,6 +250,8 @@ OUTPUT FORMAT (JSON object):
   ]
 }}
 
+{prd_context_block}
+
 INTENT DOCUMENT:
 {intent}
 
@@ -283,16 +285,25 @@ class LLMStoryGenerator:
             # Default to anthropic for unknown models
             return "anthropic"
 
-    def generate(self, intent_content: str) -> dict[str, Any]:
+    def generate(self, intent_content: str, prd_context: dict[str, Any] | None = None) -> dict[str, Any]:
         """Generate goals and stories from intent document.
 
         Args:
             intent_content: Raw content of the intent document
+            prd_context: Optional structured PRD metadata from DCP
 
         Returns:
             Dictionary containing goals and stories
         """
-        prompt = STORY_GENERATION_PROMPT.format(intent=intent_content)
+        prd_context_block = ""
+        if prd_context:
+            prd_context_block = "STRUCTURED PRD CONTEXT (DCP):\n" + json.dumps(prd_context, indent=2) + "\n"
+            prd_context_block += "\nINSTRUCTION: Cross-reference the Personas and User Journeys above. Ensure generated stories specifically address the personas and follow the journey steps described."
+
+        prompt = STORY_GENERATION_PROMPT.format(
+            intent=intent_content,
+            prd_context_block=prd_context_block
+        )
         response = self._call_llm(prompt)
         result = self._parse_response(response)
 

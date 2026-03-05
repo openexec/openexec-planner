@@ -166,7 +166,8 @@ RULES:
 7. VALIDATE: Identify facts that the user stated (Explicit) vs what you are inferring (Assumed).
 8. ONE QUESTION: Ask exactly ONE high-leverage question at a time to minimize user fatigue.
 9. CONTRACTS: For Refactoring, prioritize mapping existing API/DB contracts and dependencies.
-10. OUTPUT ONLY JSON: Respond with a single JSON object matching the WizardResponse schema.
+10. OUTPUT ONLY JSON: Respond with a single JSON object matching the WizardResponse schema. No markdown outside the JSON.
+11. COMPLETION: If all required fields are filled and the user indicates they are ready or happy, set "is_complete": true.
 
 SCHEMA DEFINITION:
 - flow: "greenfield", "refactor", or "unknown"
@@ -174,9 +175,12 @@ SCHEMA DEFINITION:
 - platforms: List of "macos", "windows", "linux", "ios", "android", "web", "cross-platform"
 - legacy_repo_path: Required if flow is "refactor"
 - constraints: List of objects with "id" (C-001, etc.) and "description"
-- dependencies: List of objects with "name", "description", and "type" (e.g., {"name": "Supabase", "type": "database"})
+- entities: List of objects with "name", "description", and "data_source" (Source of Truth)
+- primary_goals: List of objects with "id", "description", "success_criteria"
 - explicit_facts: List of strings the user explicitly stated.
 - assumptions: List of strings you are assuming but need confirmation on.
+- is_complete: Boolean. Set to true ONLY when the intent is fully populated and the user is satisfied.
+- next_question: The single next question to ask. If complete, set to "Intent is ready for generation."
 
 RESPONSE FORMAT (JSON):
 {{
@@ -194,7 +198,7 @@ class WizardResponse(BaseModel):
     """Response from the wizard agent."""
 
     updated_state: IntentState
-    next_question: str
+    next_question: str | None = "Do you have any other requirements?"
     acknowledgement: str | None = None
     is_complete: bool = False
     new_facts: list[str] = Field(default_factory=list)
@@ -220,9 +224,19 @@ class IntentWizard:
         Returns:
             WizardResponse containing updated state and next question
         """
+        # Sanitize input: trim whitespace and normalize newlines
+        clean_msg = message.strip()
+        if not clean_msg:
+            return WizardResponse(
+                updated_state=self.state,
+                next_question="Could you please provide some details about your project?",
+                acknowledgement="Input was empty.",
+                is_complete=False,
+            )
+
         # Scan message for mentioned files and include context
-        context_files = self._scan_for_files(message)
-        enhanced_message = message
+        context_files = self._scan_for_files(clean_msg)
+        enhanced_message = clean_msg
         if context_files:
             enhanced_message += "\n\nFILE CONTEXT PROVIDED:\n"
             for path, content in context_files.items():
@@ -250,6 +264,15 @@ class IntentWizard:
 
             return result
         except (ValueError, Exception) as e:
+            # SAFETY FALLBACK: If state is already ready and LLM returned text, just finish
+            if self.state.is_ready():
+                return WizardResponse(
+                    updated_state=self.state,
+                    next_question="Intent is ready.",
+                    acknowledgement="Proceeding with finalized intent.",
+                    is_complete=True,
+                )
+
             # If parsing fails, don't crash. Return a retry question.
             return WizardResponse(
                 updated_state=self.state,

@@ -47,44 +47,44 @@ GEMINI_MODELS = {
     "gemini-3.1-flash-preview": "gemini-3.1-flash-preview",
 }
 
-STORY_REVIEW_PROMPT = """You are a senior software architect reviewing generated user stories for 
+STORY_REVIEW_PROMPT = """You are a senior software architect reviewing generated user stories for
 implementation readiness.
 
-Your goal is to ensure the stories are SUFFICIENT FOR IMPLEMENTATION and have correct 
+Your goal is to ensure the stories are SUFFICIENT FOR IMPLEMENTATION and have correct
 dependency modeling for parallel execution.
 
 REVIEW THE STORIES AGAINST THESE CRITERIA:
 
-1. **Requirement Coverage**: Each REQ-XXX in the intent must map to exactly ONE story. 
+1. **Requirement Coverage**: Each REQ-XXX in the intent must map to exactly ONE story.
    No requirements should be missing or buried.
 
-2. **Goal Convergence**: Every story must link to a Goal ID. Most importantly, do 
-   these stories collectively ACHIEVE the goals defined in the intent? If a goal 
-   (e.g., G-001) has no stories that directly satisfy its success criteria, 
+2. **Goal Convergence**: Every story must link to a Goal ID. Most importantly, do
+   these stories collectively ACHIEVE the goals defined in the intent? If a goal
+   (e.g., G-001) has no stories that directly satisfy its success criteria,
    reject the plan.
 
-3. **No Redundancy**: Stories should not overlap. If US-001, US-005, and US-010 all 
+3. **No Redundancy**: Stories should not overlap. If US-001, US-005, and US-010 all
    cover "basic setup", they must be merged into one.
 
-4. **Dependency Correctness**: Check the "depends_on" lists. 
-   - Foundational stories (Docker, Schema, Shared Types) must be dependencies 
+4. **Dependency Correctness**: Check the "depends_on" lists.
+   - Foundational stories (Docker, Schema, Shared Types) must be dependencies
      for feature stories.
    - Sequential tasks within a story must have internal dependencies.
    - Independent stories/tasks should have empty "depends_on" to allow parallelism.
 
 5. **Quality & Correctness**: No parsing errors, hallucinations, or corrupted titles.
 
-6. **Acceptance Criteria**: Must be extracted from the intent document, not null or 
+6. **Acceptance Criteria**: Must be extracted from the intent document, not null or
    generic. These define "done".
 
 7. **Specific Tasks**: Tasks must be technical and actionable.
 
-8. **Test Coverage**: Implementation stories MUST include tasks specifically for 
-   comprehensive unit testing (>90% coverage) and, where applicable, 
+8. **Test Coverage**: Implementation stories MUST include tasks specifically for
+   comprehensive unit testing (>90% coverage) and, where applicable,
    End-to-End (E2E) testing. Reject plans that lack rigorous verification steps.
 
-9. **ISO-Compliant Workflow**: Confirm the plan supports Story-Level validation. 
-   Every implementation story must have a final task or acceptance criterion that 
+9. **ISO-Compliant Workflow**: Confirm the plan supports Story-Level validation.
+   Every implementation story must have a final task or acceptance criterion that
    summarizes the verification evidence for the entire feature set.
 
 ORIGINAL INTENT:
@@ -680,7 +680,7 @@ class LLMStoryGenerator:
                     pass
 
                 raise ValueError(
-                    f"Failed to parse JSON from response: {e}\n" f"Text (first 500 chars): {json_text[:500]}"
+                    f"Failed to parse JSON from response: {e}\nText (first 500 chars): {json_text[:500]}"
                 ) from e
 
     def _parse_review_response(self, response: str) -> dict[str, Any]:

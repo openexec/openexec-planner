@@ -1,7 +1,9 @@
 import json
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 from openexec_planner.llm_generator import LLMStoryGenerator
+
 
 class TestPRDContext(unittest.TestCase):
     def setUp(self):
@@ -15,20 +17,27 @@ class TestPRDContext(unittest.TestCase):
 - G1"""
         prd_context = {
             "personas": [{"key": "admin", "content": "Admin user info"}],
-            "user_journeys": [{"key": "login", "content": "1. User logs in"}]
+            "user_journeys": [{"key": "login", "content": "1. User logs in"}],
         }
-        
-        mock_call.return_value = json.dumps({
-            "stories": [
-                {
-                    "id": "US-001",
-                    "title": "Login for Admin",
-                    "tasks": [
-                        {"id": "T1", "title": "Implement login", "technical_strategy": "strat", "verification_script": "test"}
-                    ]
-                }
-            ]
-        })
+
+        mock_call.return_value = json.dumps(
+            {
+                "stories": [
+                    {
+                        "id": "US-001",
+                        "title": "Login for Admin",
+                        "tasks": [
+                            {
+                                "id": "T1",
+                                "title": "Implement login",
+                                "technical_strategy": "strat",
+                                "verification_script": "test",
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
 
         # Act
         self.generator.generate(intent, prd_context=prd_context)
@@ -44,17 +53,18 @@ class TestPRDContext(unittest.TestCase):
     def test_empty_prd_context(self):
         # Arrange
         intent = "# Intent"
-        
+
         with patch.object(self.generator, "_call_llm") as mock_call:
             mock_call.return_value = json.dumps({"stories": []})
-            
+
             # Act
             self.generator.generate(intent, prd_context=None)
-            
+
             # Assert
             args, _ = mock_call.call_args
             prompt = args[0]
             self.assertNotIn("STRUCTURED PRD CONTEXT", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -165,7 +165,7 @@ RULES:
 6. DATA LOCALITY: For every core entity, determine its source of truth (e.g., Local Database, External API like Supabase, Third-party service).
 7. VALIDATE: Identify facts that the user stated (Explicit) vs what you are inferring (Assumed).
 8. ONE QUESTION: Ask exactly ONE high-leverage question at a time to minimize user fatigue.
-9. TECHNICAL AUTONOMY: Early in the interview, ask if the user wants to make specific technical/architectural decisions (e.g., choice of database, framework) or if they prefer you to decide on their behalf based on best practices. 
+9. TECHNICAL AUTONOMY: Early in the interview, ask if the user wants to make specific technical/architectural decisions (e.g., choice of database, framework) or if they prefer you to decide on their behalf based on best practices.
 10. ACCESSIBILITY: If the user seems non-technical, explain choices in plain English or make sensible defaults (Assumptions) and ask for confirmation rather than asking them to choose from a list of technologies.
 11. CONTRACTS: For Refactoring, prioritize mapping existing API/DB contracts and dependencies.
 12. OUTPUT ONLY JSON: Respond with a single JSON object matching the WizardResponse schema. DO NOT include any conversational text, markdown preamble, or explanations outside the JSON.
@@ -230,7 +230,7 @@ class IntentWizard:
         # Remove non-printable characters and extra whitespace
         clean_msg = "".join(char for char in message if char.isprintable() or char in "\n\r\t")
         clean_msg = clean_msg.strip()
-        
+
         if not clean_msg:
             return WizardResponse(
                 updated_state=self.state,
@@ -255,7 +255,7 @@ class IntentWizard:
         # Retry loop for self-healing JSON responses
         max_retries = 2
         last_error = ""
-        
+
         for attempt in range(max_retries + 1):
             if attempt > 0:
                 # Add a correction instruction if this is a retry
@@ -299,7 +299,7 @@ class IntentWizard:
                         new_facts=[],
                         new_assumptions=[],
                     )
-        
+
         # Should not be reachable
         return WizardResponse(updated_state=self.state, next_question="...")
 

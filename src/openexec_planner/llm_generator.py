@@ -300,10 +300,7 @@ class LLMStoryGenerator:
             prd_context_block = "STRUCTURED PRD CONTEXT (DCP):\n" + json.dumps(prd_context, indent=2) + "\n"
             prd_context_block += "\nINSTRUCTION: Cross-reference the Personas and User Journeys above. Ensure generated stories specifically address the personas and follow the journey steps described."
 
-        prompt = STORY_GENERATION_PROMPT.format(
-            intent=intent_content,
-            prd_context_block=prd_context_block
-        )
+        prompt = STORY_GENERATION_PROMPT.format(intent=intent_content, prd_context_block=prd_context_block)
         response = self._call_llm(prompt)
         result = self._parse_response(response)
 
@@ -313,10 +310,14 @@ class LLMStoryGenerator:
             print(f"  ! Generated JSON has {len(errors)} validation errors. Attempting self-healing...")
             for err in errors:
                 print(f"    - {err}")
-            
+
             # Trigger a fix turn
-            result["stories"] = self._fix_stories(result.get("stories", []), intent_content, {"approved": False, "key_issues": [{"category": "Validation", "description": e} for e in errors]})
-            
+            result["stories"] = self._fix_stories(
+                result.get("stories", []),
+                intent_content,
+                {"approved": False, "key_issues": [{"category": "Validation", "description": e} for e in errors]},
+            )
+
             # Final validation check
             final_errors = self.validate_stories(result)
             if final_errors:
@@ -326,20 +327,20 @@ class LLMStoryGenerator:
 
     def validate_stories(self, data: dict[str, Any]) -> list[str]:
         """Validate the internal structure of generated stories and tasks.
-        
+
         Returns a list of error messages, or empty list if valid.
         """
         errors = []
         if not isinstance(data, dict):
             return ["Root must be a JSON object"]
-            
+
         stories = data.get("stories", [])
         if not isinstance(stories, list):
             return ["'stories' must be a JSON array"]
 
         for i, story in enumerate(stories):
             story_id = story.get("id", f"Index {i}")
-            
+
             # Check story required fields
             for field in ["id", "title", "tasks"]:
                 if field not in story:
@@ -356,12 +357,12 @@ class LLMStoryGenerator:
                 if not isinstance(task, dict):
                     errors.append(f"Story {story_id}, task {j} is not a JSON object")
                     continue
-                
+
                 # Check task required fields
                 for field in ["id", "title", "technical_strategy", "verification_script"]:
                     if field not in task or not task[field]:
                         errors.append(f"Task {task_id} in story {story_id} is missing or has empty '{field}'")
-        
+
         return errors
 
     def _call_cli(self, prompt: str) -> str:
